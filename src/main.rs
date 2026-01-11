@@ -34,7 +34,7 @@ async fn main() {
         {
             if let Value::Object(map) = &mut file {
                 map.insert(
-                    "timestamp".to_string(),
+                    "dumped".to_string(),
                     Value::from(
                         std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
