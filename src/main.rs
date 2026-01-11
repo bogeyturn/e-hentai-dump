@@ -32,6 +32,17 @@ async fn main() {
             .into_iter()
             .zip(data.iter().map(|v| v.1.gid))
         {
+            if let Value::Object(map) = &mut file {
+                map.insert(
+                    "timestamp".to_string(),
+                    Value::from(
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs(),
+                    ),
+                );
+            }
             let path = PathBuf::from(format!("detail/{}.json", gid));
             File::create(path)
                 .unwrap()
