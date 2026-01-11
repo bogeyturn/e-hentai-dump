@@ -26,7 +26,7 @@ async fn main() {
             .iter()
             .map(|v| (v.1.gid, v.1.token.clone()))
             .collect::<Vec<_>>();
-        for (file, gid) in api(&client, payload)
+        for (mut file, gid) in api(&client, payload)
             .await
             .unwrap()
             .into_iter()
