@@ -1,0 +1,16 @@
+[workspace]
+members = ["crates/downloader", "crates/db-creator"]
+resolver = "3"
+default-members = ["crates/downloader"]
+
+[workspace.dependencies]
+tokio = "1.49.0"
+reqwest = { version = "0.13.1" }
+quick-xml = { version = "0.39.0" }
+anyhow = { version = "1.0.100" }
+serde = { version = "1.0.228" }
+serde_json = { version = "1.0.149" }
+scraper = { version = "0.25.0" }
+chrono = { version = "0.4.42" }
+simd-json = "0.17.0"
+ahash = "0.8.12"
