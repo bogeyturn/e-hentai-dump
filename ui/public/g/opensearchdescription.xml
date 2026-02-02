@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+	<ShortName>E-H Galleries</ShortName>
+	<LongName>E-Hentai Galleries Search</LongName>
+	<Description
+    >E-Hentai Galleries: The Free Hentai Doujinshi, Manga, HCG and Image Gallery System</Description>
+	<InputEncoding>UTF-8</InputEncoding>
+	<OutputEncoding>UTF-8</OutputEncoding>
+	<Tags
+    >free hentai adult anime cartoon porn doujinshi doujin dojin manga hcg cg sets</Tags>
+	<Image
+        width="16"
+        height="16"
+        type="image/x-icon"
+    >{ORIGIN}/favicon.ico</Image>
+	<Url
+        type="text/html"
+        template="{ORIGIN}/?page={startPage?}&amp;f_search={searchTerms}"
+        pageOffset="0"
+    />
+	<Query role="example" searchTerms="sakura" />
+	<SyndicationRight>open</SyndicationRight>
+	<AdultContent>yes</AdultContent>
+	<Language>*</Language>
+</OpenSearchDescription>

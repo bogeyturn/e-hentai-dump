@@ -2,7 +2,7 @@ pub struct StringArena {
     pub data: Vec<u8>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct StrRef {
     start: usize,
     len: usize,
@@ -27,7 +27,7 @@ impl StringArena {
     }
 
     pub fn get(&self, r: StrRef) -> &str {
-        std::str::from_utf8(&self.data[r.start..r.start + r.len]).unwrap()
+        unsafe { std::str::from_utf8_unchecked(&self.data[r.start..r.start + r.len]) }
     }
 }
 
@@ -38,11 +38,6 @@ pub struct Arena<T> {
 impl<T> Arena<T> {
     pub fn new() -> Self {
         Self { data: Vec::new() }
-    }
-    pub fn with_capacity(cap: usize) -> Self {
-        Self {
-            data: Vec::with_capacity(cap),
-        }
     }
 
     pub fn add_slice(&mut self, items: Vec<T>) -> std::ops::Range<usize> {

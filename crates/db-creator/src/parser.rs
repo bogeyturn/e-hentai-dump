@@ -1,6 +1,6 @@
 use std::{fmt::Debug, str::FromStr};
 
-use serde::{Deserialize, Deserializer, Serialize, de};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use serde_json::Value;
 
 #[derive(Deserialize, Serialize)]
@@ -46,31 +46,81 @@ pub struct Torrents1 {
     pub added: u64,
     #[serde(deserialize_with = "from_string")]
     pub fsize: u64,
-    pub hash: Box<str>,
-    pub name: Option<Box<str>>,
+    pub hash: String,
+    pub name: Option<String>,
     #[serde(deserialize_with = "from_string")]
     pub tsize: u64,
 }
 
-#[derive(Deserialize, Serialize)]
-pub enum Category {
-    Doujinshi = 0,
-    Manga = 1,
-    #[serde(rename = "Artist CG")]
-    ArtistCG = 2,
-    #[serde(rename = "Game CG")]
-    GameCG = 3,
-    Western = 4,
-    #[serde(rename = "Non-H")]
-    NonH = 5,
-    #[serde(rename = "Image Set")]
-    ImageSet = 6,
-    Cosplay = 7,
-    #[serde(rename = "Asian Porn")]
-    AsianPorn = 8,
-    Misc = 9,
-    #[serde(rename = "private")]
-    Private = 10,
+use bitflags::bitflags;
+
+bitflags! {
+    #[derive(Clone, Copy)]
+    pub struct Category: u16 {
+        const DOUJINSHI   = 0b0000_0000_0001;
+        const MANGA       = 0b0000_0000_0010;
+        const ARTIST_CG   = 0b0000_0000_0100;
+        const GAME_CG     = 0b0000_0000_1000;
+        const WESTERN     = 0b0000_0001_0000;
+        const NON_H       = 0b0000_0010_0000;
+        const IMAGE_SET   = 0b0000_0100_0000;
+        const COSPLAY     = 0b0000_1000_0000;
+        const ASIAN_PORN  = 0b0001_0000_0000;
+        const MISC        = 0b0010_0000_0000;
+        const PRIVATE     = 0b0100_0000_0000;
+    }
+}
+
+// Map each bit to its string name for Serde
+const CATEGORY_NAMES: &[(Category, &str)] = &[
+    (Category::DOUJINSHI, "Doujinshi"),
+    (Category::MANGA, "Manga"),
+    (Category::ARTIST_CG, "Artist CG"),
+    (Category::GAME_CG, "Game CG"),
+    (Category::WESTERN, "Western"),
+    (Category::NON_H, "Non-H"),
+    (Category::IMAGE_SET, "Image Set"),
+    (Category::COSPLAY, "Cosplay"),
+    (Category::ASIAN_PORN, "Asian Porn"),
+    (Category::MISC, "Misc"),
+    (Category::PRIVATE, "private"),
+];
+
+impl Serialize for Category {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut names = Vec::new();
+        for (flag, name) in CATEGORY_NAMES {
+            if self.contains(*flag) {
+                names.push(*name);
+            }
+        }
+        serializer.serialize_str(&names.join(","))
+    }
+}
+
+// Deserialize from comma-separated string
+impl<'de> Deserialize<'de> for Category {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let mut cat = Category::empty();
+        for name in s.split(',').map(|x| x.trim()) {
+            if let Some((flag, _)) = CATEGORY_NAMES.iter().find(|(_, n)| *n == name) {
+                cat |= *flag;
+            } else {
+                return Err(serde::de::Error::custom(format!(
+                    "Unknown category: {}",
+                    name
+                )));
+            }
+        }
+        Ok(cat)
+    }
 }
 
 fn from_optional_string<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -87,9 +137,7 @@ where
         Value::Number(number) => T::from_str(&number.to_string())
             .map(Some)
             .map_err(de::Error::custom),
-        Value::Bool(_) => todo!(),
-        Value::Array(_) => todo!(),
-        Value::Object(_) => todo!(),
+        Value::Object(_) | Value::Bool(_) | Value::Array(_) => todo!(),
     }
 }
 fn from_string<'de, D, T>(deserializer: D) -> Result<T, D::Error>
@@ -102,10 +150,7 @@ where
     match value {
         Value::String(s) => T::from_str(&s).map_err(de::Error::custom),
         Value::Number(number) => T::from_str(&number.to_string()).map_err(de::Error::custom),
-        Value::Null => todo!(),
-        Value::Bool(_) => todo!(),
-        Value::Array(_) => todo!(),
-        Value::Object(_) => todo!(),
+        Value::Object(_) | Value::Bool(_) | Value::Array(_) | Value::Null => todo!(),
     }
 }
 
@@ -126,21 +171,44 @@ where
 
 #[derive(Debug)]
 pub enum TagPrefix {
-    Other,
-    Female,
-    Male,
-    Mixed,
-    Language,
-    Reclass,
-    Parody,
-    Character,
-    Group,
-    Artist,
-    Cosplayer,
-    Location,
-    Temp,
-    None,
+    Other = 0,
+    Female = 1,
+    Male = 2,
+    Mixed = 3,
+    Language = 4,
+    Reclass = 5,
+    Parody = 6,
+    Character = 7,
+    Group = 8,
+    Artist = 9,
+    Cosplayer = 10,
+    Location = 11,
+    Temp = 12,
+    None = 13,
 }
+
+impl From<u8> for TagPrefix {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => TagPrefix::Other,
+            1 => TagPrefix::Female,
+            2 => TagPrefix::Male,
+            3 => TagPrefix::Mixed,
+            4 => TagPrefix::Language,
+            5 => TagPrefix::Reclass,
+            6 => TagPrefix::Parody,
+            7 => TagPrefix::Character,
+            8 => TagPrefix::Group,
+            9 => TagPrefix::Artist,
+            10 => TagPrefix::Cosplayer,
+            11 => TagPrefix::Location,
+            12 => TagPrefix::Temp,
+            13 => TagPrefix::None,
+            _ => TagPrefix::Other,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Tag<T: Debug = String> {
     pub tag: T,

@@ -1,0 +1,15 @@
+├── index.vue
+├── lofi/index.vue
+├── stats.vue
+├── toplist.vue
+├── exchange.vue
+├── upload
+│ ├── manage.vue
+│ ├── managefolders.vue
+│ └── managegallery.vue
+
+├── g/[id]/[token].vue
+├── mpv/[id]/[token].vue
+
+
+

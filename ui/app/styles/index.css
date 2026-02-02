@@ -1,0 +1,98 @@
+.gl3t {
+    height: var(--gl3t-height);
+    width: var(--gl3t-width);
+}
+
+.gl3t img {
+    width: var(--gl3t-width);;
+    position: relative;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.gl3t img:not([src]) {
+    height: var(--gl3t-width);;
+}
+
+
+@supports (display: grid) {
+    .gld {
+        display: grid;
+        grid-template-columns: repeat(calc(5 - var(--cols, 0)), 1fr);
+    }
+
+    .gl1t {
+        min-width: var(--gl1t-min-width);
+        max-width: var(--gl1t-max-width);
+    }
+
+    /* Light mode */
+    @media (prefers-color-scheme: light) {
+        .col4 .gl1t:nth-child(8n + 1),
+        .col4 .gl1t:nth-child(8n + 3),
+        .col4 .gl1t:nth-child(8n + 6),
+        .col4 .gl1t:nth-child(8n + 8) {
+            background: #f2f0e4;
+        }
+
+        .col4 .gl1t:nth-child(8n + 2),
+        .col4 .gl1t:nth-child(8n + 4),
+        .col4 .gl1t:nth-child(8n + 5),
+        .col4 .gl1t:nth-child(8n + 7) {
+            background: #edebdf;
+        }
+
+        .col3 .gl1t:nth-child(2n + 1) {
+            background: #f2f0e4;
+        }
+
+        .col3 .gl1t:nth-child(2n + 2) {
+            background: #edebdf;
+        }
+
+        .col2 .gl1t:nth-child(4n + 1),
+        .col2 .gl1t:nth-child(4n + 4) {
+            background: #f2f0e4;
+        }
+
+        .col2 .gl1t:nth-child(4n + 2),
+        .col2 .gl1t:nth-child(4n + 3) {
+            background: #edebdf;
+        }
+    }
+
+    /* Dark mode */
+    @media (prefers-color-scheme: dark) {
+        .col4 .gl1t:nth-child(8n + 1),
+        .col4 .gl1t:nth-child(8n + 3),
+        .col4 .gl1t:nth-child(8n + 6),
+        .col4 .gl1t:nth-child(8n + 8) {
+            background: #363940;
+        }
+
+        .col4 .gl1t:nth-child(8n + 2),
+        .col4 .gl1t:nth-child(8n + 4),
+        .col4 .gl1t:nth-child(8n + 5),
+        .col4 .gl1t:nth-child(8n + 7) {
+            background: #3c414b;
+        }
+
+        .col3 .gl1t:nth-child(2n + 1) {
+            background: #363940;
+        }
+
+        .col3 .gl1t:nth-child(2n + 2) {
+            background: #3c414b;
+        }
+
+        .col2 .gl1t:nth-child(4n + 1),
+        .col2 .gl1t:nth-child(4n + 4) {
+            background: #363940;
+        }
+
+        .col2 .gl1t:nth-child(4n + 2),
+        .col2 .gl1t:nth-child(4n + 3) {
+            background: #3c414b;
+        }
+    }
+}

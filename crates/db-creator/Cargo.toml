@@ -7,5 +7,5 @@ edition = "2024"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 simd-json.workspace = true
-ahash.workspace = true
 jemallocator = "0.5.4"
+bitflags.workspace = true
