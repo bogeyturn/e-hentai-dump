@@ -1,0 +1,66 @@
+# Internal redirect:
+- [x] https://e-hentai.org/uploaders/ ← redirects to search with f_search
+
+# Maybe later:
+- [ ] https://repo.e-hentai.org/bounty_post.php
+- [ ] https://upload.e-hentai.org/managegallery
+- [ ] https://e-hentai.org/mytags
+- [ ] https://e-hentai.org/watched
+
+# Reimplemented Routes:
+- [~] https://e-hentai.org/bounty.php
+- [ ] https://e-hentai.org/mpv/530350/8b3c7e4a21/
+- [ ] https://e-hentai.org/g/
+  - [ ] disown
+- [ ] https://e-hentai.org/uconfig.php
+  - [ ] ~~tag power~~
+  - [ ] ~~profiles~~
+- [x] https://e-hentai.org/bounty.php?bid=10537
+  - [ ] add reward
+  - [ ] accept
+  - [ ] accepted view (if there is one)
+- [x] https://e-hentai.org/s/
+  - [ ] original size
+  - [ ] first & last
+  - [ ] title
+  - [ ] image size setting
+- [x] https://e-hentai.org/
+  - [ ] file search
+  - [ ] torrent 
+  - [ ] stars(grey, your)
+  - [ ] category
+  - [ ] seek/jump
+  - [ ] other view modes
+- [x] https://e-hentai.org/torrents.php
+  - [ ] pagination
+- [x] https://e-hentai.org/lofi/
+  - [ ] open first image
+- [x] https://e-hentai.org/lofi/g/
+- [x] https://e-hentai.org/lofi/s/
+- [x] https://upload.e-hentai.org/manage
+  - [ ] regroup
+- [x] https://upload.e-hentai.org/managefolders
+- [x] https://e-hentai.org/popular
+- [x] https://e-hentai.org/favorites.php
+  - [ ] regroup
+- [x] https://e-hentai.org/home.php
+  - [ ] unlock high
+  - [ ] reset torrent
+- [x] https://e-hentai.org/stats.php
+- [x] https://e-hentai.org/hentaiathome.php
+- [x] https://e-hentai.org/hathperks.php
+- [x] https://e-hentai.org/exchange.php?t=hath
+- [x] https://e-hentai.org/exchange.php?t=gp
+- [x] https://e-hentai.org/logs.php?t=credits
+- [x] https://e-hentai.org/logs.php?t=karma
+- [x] https://e-hentai.org/toplist.php
+  - [ ] pagination
+  - [ ] 1 prefix
+- [x] https://e-hentai.org/news.php
+- [x] https://e-hentai.org/tos.php
+
+# Redirect Routes
+- [x] ~~https://forums.e-hentai.org/~~ 
+- [x] ~~https://ehwiki.org/wiki/Main_Page~~ 
+- [x] ~~https://hentaiverse.org/~~ 
+- [x] ~~https://e-hentai.org/bitcoin.php~~

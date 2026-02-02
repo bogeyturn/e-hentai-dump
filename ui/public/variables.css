@@ -1,0 +1,7 @@
+:root {
+    --container-width: calc(1370px * var(--scale));
+    --gl1t-min-width: calc(250px * var(--scale));
+    --gl1t-max-width: calc(400px * var(--scale));
+    --gl3t-width: calc(250px * var(--scale));
+    --gl3t-height: calc(340px * var(--scale));
+}

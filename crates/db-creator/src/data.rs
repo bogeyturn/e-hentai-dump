@@ -10,16 +10,18 @@ pub struct Torrent {
     pub tsize: u64,
 }
 
+#[derive(Debug)]
 pub struct Item {
     pub gid: u64,
     pub token: StrRef,
+    pub current_gid: u64,
     pub first_gid: Option<u64>,
     pub parent_gid: Option<u64>,
 
     pub title: StrRef,
     pub title_jpn: Option<StrRef>,
     pub thumb: StrRef,
-    pub category: u8,
+    pub category: u16,
     pub rating: f64,
 
     pub tags: Range<usize>,
@@ -35,6 +37,14 @@ pub struct Item {
     pub expunged: bool,
 }
 
+impl PartialEq for Item {
+    fn eq(&self, other: &Self) -> bool {
+        self.gid == other.gid
+    }
+}
+impl Eq for Item {}
+
+#[derive(Eq, PartialEq, Hash, Clone, Copy)]
 pub struct Tag {
     pub id: usize,
     pub category: u8,

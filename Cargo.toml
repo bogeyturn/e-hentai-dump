@@ -1,9 +1,19 @@
 [workspace]
-members = ["crates/downloader", "crates/db-creator"]
+members = [
+    "crates/downloader",
+    "crates/db-creator",
+    "crates/search-parser",
+    "crates/api",
+    "crates/api-scraped",
+    "crates/api-scraped-wasm",
+]
 resolver = "3"
 default-members = ["crates/downloader"]
 
 [workspace.dependencies]
+search-parser = { path = "./crates/search-parser" }
+db-creator = { path = "./crates/db-creator" }
+api-scraped = { path = "./crates/api-scraped" }
 tokio = "1.49.0"
 reqwest = { version = "0.13.1" }
 quick-xml = { version = "0.39.0" }
@@ -11,6 +21,10 @@ anyhow = { version = "1.0.100" }
 serde = { version = "1.0.228" }
 serde_json = { version = "1.0.149" }
 scraper = { version = "0.25.0" }
-chrono = { version = "0.4.42" }
+chrono = { version = "0.4" }
 simd-json = "0.17.0"
-ahash = "0.8.12"
+bitflags = "2.10.0"
+base64 = "0.22.1"
+axum = "0.8.8"
+tsify = { version = "0.5.6" }
+log = "0.4.29"
