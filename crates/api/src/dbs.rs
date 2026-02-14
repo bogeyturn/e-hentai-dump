@@ -44,9 +44,12 @@ impl FavDb {
             .filter(|l| !l.trim().is_empty())
             .map(parse_info)
             .collect::<BTreeMap<_, _>>();
+        let mut info: BTreeMap<u8, usize> = BTreeMap::new();
         for (_, (id, _)) in &data {
+            *info.entry(*id).or_default() += 1;
             assert!(*id < 10)
         }
+        println!("Fav info: {:?}", info);
         let file = OpenOptions::new()
             .write(true)
             .create(true)

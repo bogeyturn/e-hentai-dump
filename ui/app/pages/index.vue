@@ -381,7 +381,7 @@ async function loadGallery(id: number, page: number, cache: boolean) {
 async function openGallery(id: number, page = 1) {
   viewPage.value = id;
   galleryPage.value = page;
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  window.scrollTo({ top: 0, behavior: "instant" });
   await loadGallery(id, page, false);
   await primeNeighborGalleries();
 }

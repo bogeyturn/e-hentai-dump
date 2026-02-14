@@ -61,12 +61,13 @@ impl WasmSession {
     pub fn new(
         cookie_str: String,
         proxy: Option<String>,
+        local_api: Option<String>,
         callback: Option<Function>,
     ) -> WasmSession {
         let callback =
             callback.map(|callback| Box::new(Callback { callback }) as Box<dyn CallbackTrait>);
         WasmSession {
-            inner: Session::new(cookie_str, proxy, callback),
+            inner: Session::new(cookie_str, proxy, callback, local_api),
         }
     }
 

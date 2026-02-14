@@ -72,7 +72,7 @@ impl Session {
         connections: Option<u64>,
         url_rewrite: Option<String>,
         callback: Option<Box<dyn CallbackTrait>>,
-        local_api_host: Option<&str>,
+        local_api_host: Option<String>,
     ) -> Self {
         let cookie = Cookie::new(ipb_member_id, ipb_pass_hash, sk, igneous, hath_perks);
         let mut hm = HeaderMap::new();
@@ -86,7 +86,7 @@ impl Session {
             })
             .collect::<Vec<_>>();
         let ip = if let Some(local_api_host) = local_api_host {
-            Url::parse(local_api_host).unwrap()
+            Url::parse(&local_api_host).unwrap()
         } else {
             Url::parse("http://127.0.0.1:8081").unwrap()
         };
@@ -120,6 +120,7 @@ impl Session {
         cookie: String,
         url_rewrite: Option<String>,
         callback: Option<Box<dyn CallbackTrait>>,
+        host: Option<String>,
     ) -> Self {
         let cookies = cookie
             .split(';')
@@ -139,7 +140,7 @@ impl Session {
             None,
             url_rewrite,
             callback,
-            None,
+            host,
         )
     }
 }

@@ -321,7 +321,9 @@ onUnmounted(() => {
         </tbody>
       </table>
       <div style="width: 170px;display: flex;justify-content: center;">
-        <TopRightComponent :idd="idd" :token="token" :favorite="favorite"/>
+        <TopRightComponent :idd="idd" :token="token" :favorite="favorite"
+                           @close="$emit('close')"
+        />
       </div>
     </div>
   </div>

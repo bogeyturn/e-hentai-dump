@@ -195,6 +195,7 @@ impl From<&str> for Tag {
                 "cosplayer" => TagPrefix::Cosplayer,
                 "location" => TagPrefix::Location,
                 "temp" => TagPrefix::Temp,
+                "none" => TagPrefix::None,
                 _ => unimplemented!("{}", k),
             },
         }
