@@ -25,6 +25,7 @@ fn get_session() -> Session {
         None,
         None,
         None,
+        None,
     )
 }
 
@@ -82,6 +83,9 @@ async fn search() {
             forward: true,
             advanced: None,
             cat: None,
+            range: None,
+            seek: None,
+            jump: None,
         })
         .await
         .unwrap();
@@ -99,6 +103,29 @@ async fn search2() {
             forward: true,
             advanced: None,
             cat: None,
+            range: None,
+            seek: None,
+            jump: None,
+        })
+        .await
+        .unwrap();
+    println!("{:#?}", info);
+}
+
+#[tokio::test]
+async fn local_search() {
+    let session = get_session();
+
+    let info = session
+        .local_search(SearchQuery {
+            query: None,
+            pid: None,
+            forward: true,
+            advanced: None,
+            cat: None,
+            range: None,
+            seek: None,
+            jump: None,
         })
         .await
         .unwrap();

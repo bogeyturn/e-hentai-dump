@@ -7,6 +7,7 @@ use serde_json::Value;
 #[serde(deny_unknown_fields)]
 pub struct Root1 {
     pub error: Option<bool>,
+    #[serde(deserialize_with = "category_string")]
     pub category: Category,
     pub dumped: u64,
     #[serde(default, deserialize_with = "from_optional_string")]
@@ -55,7 +56,7 @@ pub struct Torrents1 {
 use bitflags::bitflags;
 
 bitflags! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct Category: u16 {
         const DOUJINSHI   = 0b0000_0000_0001;
         const MANGA       = 0b0000_0000_0010;
@@ -71,56 +72,56 @@ bitflags! {
     }
 }
 
-// Map each bit to its string name for Serde
-const CATEGORY_NAMES: &[(Category, &str)] = &[
-    (Category::DOUJINSHI, "Doujinshi"),
-    (Category::MANGA, "Manga"),
-    (Category::ARTIST_CG, "Artist CG"),
-    (Category::GAME_CG, "Game CG"),
-    (Category::WESTERN, "Western"),
-    (Category::NON_H, "Non-H"),
-    (Category::IMAGE_SET, "Image Set"),
-    (Category::COSPLAY, "Cosplay"),
-    (Category::ASIAN_PORN, "Asian Porn"),
-    (Category::MISC, "Misc"),
-    (Category::PRIVATE, "private"),
-];
+impl FromStr for Category {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Doujinshi" => Ok(Category::DOUJINSHI),
+            "Manga" => Ok(Category::MANGA),
+            "Artist CG" => Ok(Category::ARTIST_CG),
+            "Game CG" => Ok(Category::GAME_CG),
+            "Western" => Ok(Category::WESTERN),
+            "Non-H" => Ok(Category::NON_H),
+            "Image Set" => Ok(Category::IMAGE_SET),
+            "Cosplay" => Ok(Category::COSPLAY),
+            "Asian Porn" => Ok(Category::ASIAN_PORN),
+            "Misc" => Ok(Category::MISC),
+            "private" => Ok(Category::PRIVATE),
+            _ => Err(format!("Invalid category: {}", s)),
+        }
+    }
+}
 
 impl Serialize for Category {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let mut names = Vec::new();
-        for (flag, name) in CATEGORY_NAMES {
-            if self.contains(*flag) {
-                names.push(*name);
-            }
-        }
-        serializer.serialize_str(&names.join(","))
+        serializer.serialize_u16(self.bits())
     }
 }
 
-// Deserialize from comma-separated string
 impl<'de> Deserialize<'de> for Category {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        let mut cat = Category::empty();
-        for name in s.split(',').map(|x| x.trim()) {
-            if let Some((flag, _)) = CATEGORY_NAMES.iter().find(|(_, n)| *n == name) {
-                cat |= *flag;
-            } else {
-                return Err(serde::de::Error::custom(format!(
-                    "Unknown category: {}",
-                    name
-                )));
-            }
-        }
-        Ok(cat)
+        use serde::de::Error;
+        let bits = u16::deserialize(deserializer)?;
+
+        Category::from_bits(bits)
+            .ok_or_else(|| D::Error::custom(format!("invalid Category bitmask: {bits:#x}")))
     }
+}
+
+fn category_string<'de, D>(deserializer: D) -> Result<Category, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+
+    Category::from_str(&value).map_err(de::Error::custom)
 }
 
 fn from_optional_string<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>

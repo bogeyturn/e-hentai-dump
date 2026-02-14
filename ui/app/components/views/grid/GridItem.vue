@@ -1,10 +1,10 @@
 <template>
   <div class="gl1t" data-new="1">
-    <NuxtLink :to="`/g/${id}/${secret}/`">
+    <NuxtLink :to="`/g/${idd}/${secret}/`">
       <div class="gl4t glname glink">{{ title }}</div>
     </NuxtLink>
     <div class="gl3t">
-      <NuxtLink :to="`/g/${id}/${secret}/`">
+      <NuxtLink :to="`/g/${idd}/${secret}/`">
         <img :alt="title" :title="title" :src="cover_href" />
       </NuxtLink>
     </div>
@@ -55,20 +55,7 @@ function computeColor(voted: boolean, stars: number) {
   return colors[idx];
 }
 
-const props = defineProps({
-  id: Number,
-  secret: String,
-  title: String,
-  cover: String,
-  category: String,
-  date: String,
-  voted: Boolean,
-  stars: Number,
-  pages: Number,
-  fav: Number,
-  disowned: Boolean,
-  newItem: Boolean,
-});
+const props = defineProps<{idd: number, secret: string, title: string, cover: string, category: string, date: {secs: number}, voted: boolean, stars: number, pages: number, fav: number | null, disowned: boolean, newItem: boolean}>();
 
 const cover_href = computed(() => {
   return wrapUrl(props.cover);

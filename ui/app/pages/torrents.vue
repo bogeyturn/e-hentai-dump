@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import NavBar from "~/components/NavBar.vue";
 import TorrentPage from "~/components/TorrentPage.vue";
-import { withDefaults } from "~/composables/useTypedQuery";
+import {withDefaults} from "~/composables/useTypedQuery";
 
-const route = useRoute();
 
 const data = useTypedQuery<{
   search: string;
@@ -21,15 +20,15 @@ const data = useTypedQuery<{
 </script>
 <template>
   <div>
-    <NavBar />
+    <NavBar/>
     <div v-if="data.error">{{ data.error }}</div>
     <TorrentPage
-      v-if="data.data"
-      :search="data.data.search"
-      :page="data.data.page"
-      :o="data.data.o"
-      :s="data.data.s"
-      :u="data.data.u"
+        v-if="data.data"
+        :search="data.data.search"
+        :page="data.data.page+1"
+        :o="data.data.o"
+        :s="data.data.s"
+        :u="data.data.u"
     />
   </div>
 </template>

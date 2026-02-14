@@ -88,21 +88,43 @@ impl WasmSession {
         &self,
         query: Option<String>,
         pid: Option<u64>,
+        range: Option<u8>,
+        seek: Option<String>,
+        jump: Option<String>,
         forward: Option<bool>,
         advanced: Option<AdvancedConfig>,
         categories: Option<u16>,
+        local: bool,
     ) -> Result<Search, JsValue> {
-        let out = self
-            .inner
-            .search(SearchQuery {
-                query,
-                pid,
-                forward: forward.unwrap_or(true),
-                advanced,
-                cat: categories,
-            })
-            .await
-            .map_err(js_err)?;
+        let out = if local {
+            self.inner
+                .local_search(SearchQuery {
+                    query,
+                    pid,
+                    forward: forward.unwrap_or(true),
+                    advanced,
+                    cat: categories,
+                    range,
+                    seek,
+                    jump,
+                })
+                .await
+        } else {
+            self.inner
+                .search(SearchQuery {
+                    query,
+                    pid,
+                    forward: forward.unwrap_or(true),
+                    advanced,
+                    cat: categories,
+                    range,
+                    seek,
+                    jump,
+                })
+                .await
+        }
+        .map_err(js_err)?;
+
         Ok(out)
     }
 
@@ -138,11 +160,19 @@ impl WasmSession {
         apiuid: u64,
         apikey: String,
         rating: u8,
+        local: bool,
     ) -> Result<(), JsValue> {
-        self.inner
-            .rate(gid, &token, apiuid, &apikey, rating)
-            .await
-            .map_err(js_err)?;
+        if local {
+            self.inner
+                .rate_local(gid, &token, apiuid, &apikey, rating)
+                .await
+                .map_err(js_err)?;
+        } else {
+            self.inner
+                .rate(gid, &token, apiuid, &apikey, rating)
+                .await
+                .map_err(js_err)?;
+        }
         Ok(())
     }
 
@@ -153,20 +183,40 @@ impl WasmSession {
         token: String,
         favcat: u8,
         favnote: String,
+        local: bool,
     ) -> Result<(), JsValue> {
-        self.inner
-            .add_favorite(gid, &token, favcat, &favnote)
-            .await
-            .map_err(js_err)?;
+        if local {
+            self.inner
+                .add_favorite_local(gid, &token, favcat, &favnote)
+                .await
+                .map_err(js_err)?;
+        } else {
+            self.inner
+                .add_favorite(gid, &token, favcat, &favnote)
+                .await
+                .map_err(js_err)?;
+        }
         Ok(())
     }
 
     #[wasm_bindgen(js_name = removeFavorite)]
-    pub async fn remove_favorite_js(&self, gid: u64, token: String) -> Result<(), JsValue> {
-        self.inner
-            .remove_favorite(gid, &token)
-            .await
-            .map_err(js_err)?;
+    pub async fn remove_favorite_js(
+        &self,
+        gid: u64,
+        token: String,
+        local: bool,
+    ) -> Result<(), JsValue> {
+        if local {
+            self.inner
+                .remove_favorite_local(gid, &token)
+                .await
+                .map_err(js_err)?;
+        } else {
+            self.inner
+                .remove_favorite(gid, &token)
+                .await
+                .map_err(js_err)?;
+        }
         Ok(())
     }
 

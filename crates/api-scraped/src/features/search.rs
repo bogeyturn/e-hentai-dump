@@ -1,22 +1,22 @@
-use std::fmt::Display;
+use std::{fmt::Display, time::Duration};
 
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 
-use crate::Session;
+use crate::{Session, unit};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct AdvancedConfig {
-    explunged: Option<bool>,
-    require_torrent: Option<bool>,
-    min_pages: Option<u32>,
-    max_pages: Option<u32>,
-    min_rating: Option<u8>,
-    disable_lang: Option<bool>,
-    disable_uploader: Option<bool>,
-    disable_tags: Option<bool>,
+    pub explunged: Option<bool>,
+    pub require_torrent: Option<bool>,
+    pub min_pages: Option<u32>,
+    pub max_pages: Option<u32>,
+    pub min_rating: Option<u8>,
+    pub disable_lang: Option<bool>,
+    pub disable_uploader: Option<bool>,
+    pub disable_tags: Option<bool>,
 }
 
 impl AdvancedConfig {
@@ -71,7 +71,7 @@ pub struct SearchInfo {
     pub token: String,
     pub category: String,
     pub publisher: String,
-    pub published: String,
+    pub published: Duration,
     pub disowned: bool,
     pub new: bool,
     pub pages: u32,
@@ -86,12 +86,12 @@ pub struct SearchInfo {
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Search {
-    progress_min: f64,
-    progress_max: f64,
+    pub progress_min: f64,
+    pub progress_max: f64,
     pub items: Vec<SearchInfo>,
-    first: bool,
-    last: bool,
-    count: String,
+    pub first: bool,
+    pub last: bool,
+    pub count: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -100,6 +100,9 @@ pub struct Search {
 pub struct SearchQuery {
     pub query: Option<String>,
     pub pid: Option<u64>,
+    pub range: Option<u8>,
+    pub seek: Option<String>,
+    pub jump: Option<String>,
     pub forward: bool,
     pub cat: Option<u16>,
     pub advanced: Option<AdvancedConfig>,
@@ -127,6 +130,12 @@ impl Display for SearchQuery {
                 },
                 v
             ));
+        } else if let Some(v) = self.range {
+            items.push(format!("range={}", v.clamp(0, 100)));
+        } else if let Some(v) = &self.seek {
+            items.push(format!("seek={}", v))
+        } else if let Some(v) = &self.jump {
+            items.push(format!("jump={}", v))
         }
 
         write!(f, "{}", items.join("&"))
@@ -312,7 +321,7 @@ pub fn extract_info(html: &Html, selectors: InfoSelectors) -> Vec<SearchInfo> {
             token: sub.1.trim().to_string().replace("/", ""),
             category: category.trim().to_owned(),
             publisher: uploader.trim().to_owned(),
-            published: published.trim().to_owned(),
+            published: unit::parse_date(published.trim()).unwrap(),
             new,
             disowned,
             pages: pages

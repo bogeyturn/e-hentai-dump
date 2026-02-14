@@ -7,10 +7,10 @@ const props = defineProps<{
 const favorite = ref(props.favorite);
 
 watch(
-  () => props.idd,
-  (n, o) => {
-    favorite.value = props.favorite;
-  },
+    () => props.idd,
+    (_n: bigint, _o: bigint) => {
+      favorite.value = props.favorite;
+    },
 );
 const ses = getSession();
 const cookie = useCookie("EX_COOKIE");
@@ -23,10 +23,10 @@ const tagField = defineModel<string>("tagField");
 
 async function setFav(e: PointerEvent, index: number) {
   favorite.value = index;
-  await ses.addFavorite(props.idd, props.token, index, tagField.value ?? "");
+  await ses.addFavorite(props.idd, props.token, index, tagField.value ?? "", true);
+  await ses.addFavorite(props.idd, props.token, index, tagField.value ?? "", false);
   const cookie_val = await ses.cookie();
   if (cookie_val != cookie.value) cookie.value = cookie_val;
-  await fetch(`/save?id=${props.idd}&unit=${index}&task=fav`);
   if (e.shiftKey) emit("close", undefined); //window.open("", "_self").close();
   tagField.value = "";
 
@@ -34,55 +34,57 @@ async function setFav(e: PointerEvent, index: number) {
 
 async function removeFav() {
   favorite.value = null;
-
-  await ses.removeFavorite(props.idd, props.token);
-  await fetch(`/save?id=${props.idd}&unit=999&task=fav`);
+  await ses.removeFavorite(props.idd, props.token, true);
+  await ses.removeFavorite(props.idd, props.token, false);
   const cookie_val = await ses.cookie();
   if (cookie_val != cookie.value) cookie.value = cookie_val;
 }
 </script>
 
 <template>
-  <div id="gd5">
-    <div
-      class="button-container"
-      style="
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        gap: 5px;
-
-        width: 25px;
-      "
-    >
-      <button
+  <div class="button-grid">
+    <button
         v-for="i in 10"
         :key="i"
-        :class="{ active: i - 1 == favorite }"
+
+        :class="{ active: i - 1 === favorite, b: i > 5}"
         @click="(e) => (i - 1 === favorite ? removeFav() : setFav(e, i - 1))"
-      >
-        {{ i - 1 }}
-      </button>
-    </div>
-    <!-- TODO: actions -->
+    >
+      {{ i - 1 }}
+    </button>
   </div>
 </template>
 
 <style scoped>
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 0;
+  border: 1px solid #000000;
+  border-bottom: none;
+  width: fit-content;
+}
+
 button {
   padding: 2px 0;
   font-size: 12px;
   border: none;
-  border-radius: 8px;
-  background-color: #e0e0e0;
-  color: #333;
+  border-radius: 0;
+  background-color: transparent;
+  color: white;
   cursor: pointer;
   transition: all 0.2s ease;
-  width: 100%;
+
+  width: 25px;
+  height: 25px;
 }
 
 .active {
   background: #6366f1;
   color: #ffffff;
+}
+.b.active {
+  border-bottom: 0.5px solid #000000;
 }
 </style>

@@ -66,6 +66,9 @@ async fn main() {
                     forward: false,
                     cat: None,
                     advanced: None,
+                    range: None,
+                    seek: None,
+                    jump: None,
                 })
                 .await;
             match temp {

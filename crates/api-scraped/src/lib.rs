@@ -1,6 +1,7 @@
 use std::sync::{Arc, atomic::AtomicUsize};
 
 use futures::lock::Mutex;
+use reqwest::Url;
 use scraper::Selector;
 use serde_json::Value;
 
@@ -55,4 +56,5 @@ pub struct Session {
     url_rewrite: Option<String>,
     pub cookie: Arc<Mutex<Cookie>>,
     pub callback: Arc<Mutex<Option<Box<dyn CallbackTrait>>>>,
+    local_api_host: Url,
 }

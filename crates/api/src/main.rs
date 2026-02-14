@@ -12,6 +12,7 @@ use axum::{
     routing::{get, post},
 };
 use db_creator::{Db, build};
+use tower_http::cors::{Any, CorsLayer};
 
 use crate::dbs::{FavDb, RatingDb};
 pub type SharedState = Arc<AppState>;
@@ -24,8 +25,13 @@ pub struct AppState {
 async fn main() {
     let info_db = build();
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let rating_db = RatingDb::load(Path::new("ratings"));
-    let fav_db = FavDb::load(Path::new("ratings"));
+    let fav_db = FavDb::load(Path::new("favorites"));
     let state = Arc::new(AppState {
         info_db,
         fav_db: Mutex::new(fav_db),
@@ -34,10 +40,12 @@ async fn main() {
 
     let app = Router::new()
         .route("/search", post(api::search::search))
+        .route("/remove-favorite", post(api::favorite::favorite_delete))
         .route("/set-favorite", post(api::favorite::favorite))
         .route("/set-rating", post(api::rating::rating))
         .route("/grouped", post(api::compute_group::compute_group))
         .route("/ids", get(api::ids::ids))
+        .layer(cors)
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8081").await.unwrap();

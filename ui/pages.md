@@ -10,8 +10,14 @@
 # Reimplemented Routes:
 - [~] https://e-hentai.org/bounty.php
 - [ ] https://e-hentai.org/mpv/530350/8b3c7e4a21/
-- [ ] https://e-hentai.org/g/
-  - [ ] disown
+- [x] https://e-hentai.org/g/
+  - [ ] report 
+  - [ ] explunge
+  - [ ] explunge history
+  - [ ] create tag
+  - [ ] vote tag
+  - [ ] can vote(outline)
+  - [ ] comment actions
 - [ ] https://e-hentai.org/uconfig.php
   - [ ] ~~tag power~~
   - [ ] ~~profiles~~

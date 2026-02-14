@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Seek as _, SeekFrom, Write};
 use std::{
     collections::BTreeMap,
     fs::{File, OpenOptions, read_to_string},
@@ -29,10 +29,7 @@ fn parse_info(s: &str) -> (u64, (u8, Option<String>)) {
     let rating = rest.split_once(":");
 
     let (rating, title) = match rating {
-        Some((a, b)) => (
-            a.parse().unwrap(),
-            Some(String::from_utf8(STANDARD.decode(b).unwrap()).unwrap()),
-        ),
+        Some((a, b)) => (a.parse().unwrap(), Some(b.to_owned())),
         None => (rest.parse().unwrap(), None),
     };
     (id, (rating, title))
@@ -40,17 +37,21 @@ fn parse_info(s: &str) -> (u64, (u8, Option<String>)) {
 
 impl FavDb {
     pub fn load(path: &Path) -> Self {
-        let file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path)
-            .unwrap();
+        let _ = OpenOptions::new().write(true).create(true).open(path);
         let data = read_to_string(path)
             .unwrap()
             .lines()
+            .filter(|l| !l.trim().is_empty())
             .map(parse_info)
-            .collect();
+            .collect::<BTreeMap<_, _>>();
+        for (_, (id, _)) in &data {
+            assert!(*id < 10)
+        }
+        let file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(path)
+            .unwrap();
         Self { data, file }
     }
     pub fn get(&self, id: u64) -> Option<(u8, Option<String>)> {
@@ -63,7 +64,34 @@ impl FavDb {
         let playload = title
             .map(|v| format!("{prefix}:{}", STANDARD.encode(v)))
             .unwrap_or(prefix);
+        self.file.seek(SeekFrom::End(0)).unwrap();
         writeln!(&mut self.file, "{}", playload).unwrap();
+        self.file.flush().unwrap();
+    }
+
+    pub fn remove(&mut self, id: u64) -> Option<(u8, Option<String>)> {
+        let removed = self.data.remove(&id)?;
+        self.rewrite_file();
+        Some(removed)
+    }
+
+    fn rewrite_file(&mut self) {
+        self.file.set_len(0).unwrap();
+        self.file.seek(SeekFrom::Start(0)).unwrap();
+
+        let items: Vec<_> = self.data.iter().collect();
+
+        for (&id, (rating, text)) in items {
+            let prefix = format!("{id}:{rating}");
+            let payload = text
+                .as_ref()
+                .map(|v| format!("{prefix}:{}", v))
+                .unwrap_or(prefix);
+
+            writeln!(&mut self.file, "{}", payload).unwrap();
+        }
+
+        self.file.flush().unwrap();
     }
 }
 
@@ -74,17 +102,19 @@ pub struct RatingDb {
 
 impl RatingDb {
     pub fn load(path: &Path) -> Self {
-        let file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path)
-            .unwrap();
         let data = read_to_string(path)
             .unwrap()
             .lines()
             .map(parse_info2)
-            .collect();
+            .collect::<BTreeMap<_, _>>();
+        for (_, id) in &data {
+            assert!(*id < 11)
+        }
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .unwrap();
         Self { data, file }
     }
     pub fn get(&self, id: u64) -> Option<u8> {

@@ -600,7 +600,8 @@ div.c {
   color: #aaaaaa;
   white-space: nowrap;
   overflow: hidden;
-  width: 710px;
+  min-width: 710px;
+  max-width: 1200px;
   display: flex;
   flex-direction: row;
   justify-content: space-around;

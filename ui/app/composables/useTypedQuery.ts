@@ -20,6 +20,17 @@ export const number = (): Parser<number> =>
         }
         throw new Error('Not a positive integer')
     }
+export const boolean = (): Parser<boolean> =>
+    (v) => {
+        if (typeof v !== "string") throw new Error("Not a string");
+
+        const s = v.trim().toLowerCase();
+
+        if (s === "true" || s === "on") return true;
+        if (s === "false" || s === "off") return false;
+
+        throw new Error('Not a boolean (expected true/false/on/off)');
+    };
 
 export const enumOf = <T extends readonly string[]>(values: T): Parser<T[number]> =>
     (v) => {
@@ -65,7 +76,7 @@ export function useTypedQuery<T>(schema: Schema<T>) {
         }
 
         return errors.length
-            ? { error: errors.join(', ') }
-            : { data: result as T }
+            ? {error: errors.join(', ')}
+            : {data: result as T}
     })
 }

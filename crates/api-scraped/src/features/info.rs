@@ -13,12 +13,14 @@ use super::{mpv::ImagePage, search::star_parse};
 pub struct Info {
     pub id: u64,
     pub token: String,
+    pub thumb: ImagePage,
     pub tags: Vec<String>,
     pub rating: Option<f64>,
     pub newer: Vec<(u64, String)>,
     pub category: String,
     pub title: String,
     pub alt_title: Option<String>,
+    pub per_page: u32,
     pub pages: Vec<ImagePage>,
     pub posted: Duration,
     pub files: u32,
@@ -26,11 +28,22 @@ pub struct Info {
     pub visible: bool,
     pub language: String,
     pub uploader: String,
+    pub uploader_id: Option<u64>,
+    pub parent: Option<Parent>,
     pub apiuid: u64,
     pub apikey: String,
+    pub favorited: u64,
     pub favorite: Option<u8>,
     pub my_stars: Option<u8>,
     pub comments: Vec<Comment>,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi))]
+pub struct Parent {
+    id: u64,
+    key: String,
 }
 
 fn parse_url(url: &str) -> (u64, String) {
@@ -75,6 +88,48 @@ pub struct Comment {
     updated: Option<String>,
 }
 
+fn str_to_parent(s: &str) -> Parent {
+    let s = s.split_once("/g/").unwrap().1;
+    let mut parts = s.split('/');
+    let id = parts.next().unwrap().parse().unwrap();
+    let token = parts.next().unwrap();
+    Parent {
+        id,
+        key: token.to_owned(),
+    }
+}
+
+fn thumb_from_str(s: &str) -> ImagePage {
+    let w = s
+        .split_once("width:")
+        .unwrap()
+        .1
+        .split_once("px")
+        .unwrap()
+        .0;
+    let h = s
+        .split_once("height:")
+        .unwrap()
+        .1
+        .split_once("px")
+        .unwrap()
+        .0;
+    let url = s
+        .split_once("url(")
+        .unwrap()
+        .1
+        .split_once(") 0 0")
+        .unwrap()
+        .0;
+    ImagePage {
+        id: 0,
+        ratio: (w.parse().unwrap(), h.parse().unwrap()),
+        key: "".to_owned(),
+        name: "".to_owned(),
+        url: url.to_owned(),
+    }
+}
+
 impl Session {
     pub async fn info(&self, id: u64, token: &str, page: u32) -> anyhow::Result<Info> {
         assert!(page > 0);
@@ -104,12 +159,15 @@ impl Session {
         let alt_title = Selector::parse("#gd2 > #gj").unwrap();
         let title = Selector::parse("#gd2 > #gn").unwrap();
         let uploader = Selector::parse("#gdn").unwrap();
+        // let uploader_id = Selector::parse("#gdn a").unwrap();
         let category = Selector::parse("#gdc > div").unwrap();
         let newer = Selector::parse("#gnd a").unwrap();
         let rating = Selector::parse("#gdr #rating_label").unwrap();
         let fav = Selector::parse("#fav > div").unwrap();
         let tags = Selector::parse("#taglist td > div").unwrap();
+        let thumb = Selector::parse("#gd1 > div").unwrap();
         let my_stars = Selector::parse("#rating_image").unwrap();
+        let page_count = Selector::parse(".ptt td a").unwrap();
         let rating = html
             .select(&rating)
             .next()
@@ -120,22 +178,46 @@ impl Session {
         let imgs = Selector::parse("#gdt > a").unwrap();
         let table1 = Selector::parse("#gdd td.gdt1").unwrap();
         let table2 = Selector::parse("#gdd td.gdt2").unwrap();
+        let a = Selector::parse("a").unwrap();
         let comments = Selector::parse("#cdiv > .c1").unwrap();
         let comments_when = Selector::parse(".c3").unwrap();
         let comments_score = Selector::parse(".c5 > span").unwrap();
         let comments_content = Selector::parse(".c6").unwrap();
         let comment_edit = Selector::parse(".c8 > strong").unwrap();
         let comments_upvotes = Selector::parse(".c7").unwrap();
+        let favcount = crate::id("favcount");
 
         let td1 = html
             .select(&table1)
-            .map(|v| v.text().collect::<String>().trim().to_owned());
-        let td2 = html
-            .select(&table2)
             .map(|v| v.text().collect::<String>().trim().to_owned())
             .collect::<Vec<_>>();
-        let mapped = td1.zip(td2).collect::<HashMap<_, _>>();
+        let td2 = html.select(&table2).map(|v| v).collect::<Vec<_>>();
+        let td3 = td2
+            .iter()
+            .map(|v| v.text().collect::<String>().trim().to_owned());
+        let mapped = td1.clone().into_iter().zip(td3).collect::<HashMap<_, _>>();
+        let mapped2 = td1.into_iter().zip(td2).collect::<HashMap<_, _>>();
         let posted = mapped.get("Posted:").unwrap();
+        let page_count = html
+            .select(&page_count)
+            .map(|v| {
+                v.attr("href")
+                    .unwrap()
+                    .split_once("?p=")
+                    .map(|v| v.1)
+                    .unwrap_or("0")
+                    .parse::<u32>()
+                    .unwrap()
+            })
+            .max()
+            .unwrap()
+            + 1;
+        let parent = mapped2
+            .get("Parent:")
+            .unwrap()
+            .select(&a)
+            .next()
+            .map(|v| str_to_parent(v.attr("href").unwrap()));
         let visible = mapped.get("Visible:").unwrap() == "Yes";
         let language = mapped.get("Language:").unwrap();
         let fsize = mapped.get("File Size:").unwrap();
@@ -248,14 +330,31 @@ impl Session {
                 }
             })
             .collect::<Vec<Comment>>();
-        //TODO: Favorited
+
+        let favorited = html
+            .select(&favcount)
+            .next()
+            .unwrap()
+            .text()
+            .collect::<String>()
+            .replace("Never", "0")
+            .replace("Once", "1")
+            .replace("times", "")
+            .replace(" ", "")
+            .parse()
+            .unwrap();
+
         Ok(Info {
+            parent,
             id,
             apiuid,
             comments,
             favorite: fav,
+            thumb: thumb_from_str(html.select(&thumb).next().unwrap().attr("style").unwrap()),
+            favorited,
             apikey: apikey.to_owned(),
             token: token.to_owned(),
+            per_page: f64::ceil(length as f64 / page_count as f64) as u32,
             pages: html
                 .select(&imgs)
                 .zip(hrefs)
@@ -310,6 +409,16 @@ impl Session {
                 .collect::<String>()
                 .trim()
                 .to_owned(),
+            // uploader_id: html.select(&uploader_id).next().map(|v| {
+            //     v.attr("href")
+            //         .unwrap()
+            //         .split_once("showuser=")
+            //         .expect(v.attr("href").unwrap())
+            //         .1
+            //         .parse()
+            //         .unwrap()
+            // }),
+            uploader_id: None,
             newer: html
                 .select(&newer)
                 .map(|v| parse_url(v.attr("href").unwrap()))

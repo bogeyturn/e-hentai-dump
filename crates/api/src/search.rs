@@ -145,6 +145,8 @@ pub trait Search {
     ) -> (Vec<&'a Item>, f64, u64, bool, bool);
     fn search_fast<'a>(&'a self, search: SearchData, size: usize) -> (Vec<&'a Item>, bool, bool);
 }
+
+#[derive(Debug)]
 pub struct SearchData {
     pub filter: FilterData,
     pub pagination: Pagination,
@@ -156,12 +158,14 @@ pub struct SearchData {
     pub category: Category,
 }
 
+#[derive(Debug)]
 pub enum Unit {
     Year,
     Month,
     Day,
     Week,
 }
+#[derive(Debug)]
 pub enum Pagination {
     Jump { unit: Unit, value: u32 },
     Range(u8),
@@ -245,10 +249,16 @@ impl Search for Db {
             Pagination::Range(r) => (self.items.len() * r.clamp(0, 100) as usize / 100, true),
             Pagination::Id { id, forward } => (
                 match id {
-                    Some(page) => match self.find_nearest(page, forward) {
-                        Some((_, offset)) => *offset,
+                    Some(page) => match self.find_nearest(page, !forward) {
+                        Some((_, offset)) => {
+                            let mut offset = *offset;
+                            if forward && self.items.get(offset).map(|v| v.gid) == Some(page) {
+                                offset = offset.saturating_add(1);
+                            }
+                            offset.min(self.items.len())
+                        }
                         None => match forward {
-                            true => 0,
+                            true => self.items.len(),
                             false => self.items.len(),
                         },
                     },
@@ -306,6 +316,7 @@ impl Search for Db {
         mut search: SearchData,
         size: usize,
     ) -> (Vec<&'a Item>, f64, u64, bool, bool) {
+        println!("{:?}", search);
         let filtered: Vec<&Item> = self
             .items
             .iter()
@@ -324,62 +335,63 @@ impl Search for Db {
             });
         }
 
-        let start_idx = match search.pagination {
+        let out: Vec<&Item> = match search.pagination {
             Pagination::Jump { .. } => unreachable!(),
             Pagination::Range(i) => {
-                (i.clamp(0, 100) as f64 / 100.0 * filtered.len() as f64).round() as usize
+                let start =
+                    (i.clamp(0, 100) as f64 / 100.0 * filtered.len() as f64).round() as usize;
+                filtered.iter().skip(start).take(size).copied().collect()
             }
-            Pagination::Seek(duration) => filtered
-                .iter()
-                .position(|item| item.posted <= duration.timestamp() as u64)
-                .unwrap_or(0),
+            Pagination::Seek(duration) => {
+                let start = filtered
+                    .iter()
+                    .position(|item| item.posted <= duration.timestamp() as u64)
+                    .unwrap_or(filtered.len());
+                filtered.iter().skip(start).take(size).copied().collect()
+            }
             Pagination::Id { id, forward } => match id {
                 Some(page_id) => {
+                    let split = filtered
+                        .iter()
+                        .position(|item| item.gid <= page_id)
+                        .unwrap_or(filtered.len());
                     if forward {
-                        filtered
-                            .iter()
-                            .position(|item| item.gid >= page_id)
-                            .unwrap_or(0)
+                        let start = match filtered.get(split) {
+                            Some(item) if item.gid == page_id => split + 1,
+                            _ => split,
+                        };
+                        filtered.iter().skip(start).take(size).copied().collect()
                     } else {
-                        filtered
-                            .iter()
-                            .position(|item| item.gid <= page_id)
-                            .unwrap_or(filtered.len())
+                        let end = split;
+                        let start = end.saturating_sub(size);
+                        filtered[start..end].iter().copied().collect()
                     }
                 }
                 None => {
                     if forward {
-                        0
+                        filtered.iter().take(size).copied().collect()
                     } else {
-                        filtered.len() - 1
+                        let end = filtered.len();
+                        let start = end.saturating_sub(size);
+                        filtered[start..end].iter().copied().collect()
                     }
                 }
             },
         };
+        let progress = out
+            .first()
+            .and_then(|first| self.items.iter().position(|item| item == *first))
+            .map(|idx| idx as f64 / self.items.len() as f64)
+            .unwrap_or(0.0);
 
-        let forward = matches!(search.pagination, Pagination::Id { id, forward: true });
-
-        let out: Vec<&Item> = if forward {
-            filtered
-                .iter()
-                .skip(start_idx)
-                .take(size)
-                .copied()
-                .collect()
-        } else {
-            let end_idx = start_idx + 1;
-            let start = end_idx.saturating_sub(size);
-            filtered[start..end_idx].iter().copied().collect()
-        };
-        let first_item_idx = self
-            .items
-            .iter()
-            .position(|item| &item == out.first().unwrap())
-            .unwrap_or(0);
-        let progress = first_item_idx as f64 / self.items.len() as f64;
-
-        let first = out.first() == filtered.first();
-        let last = out.last() == filtered.last();
+        let first = out
+            .first()
+            .map(|v| Some(v) == filtered.first())
+            .unwrap_or(true);
+        let last = out
+            .last()
+            .map(|v| Some(v) == filtered.last())
+            .unwrap_or(true);
 
         (out, progress, count as u64, first, last)
     }

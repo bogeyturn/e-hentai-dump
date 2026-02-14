@@ -2,9 +2,12 @@ use std::{collections::HashMap, sync::Arc};
 
 use futures::lock::Mutex;
 use reqwest::{
-    ClientBuilder, Proxy,
+    ClientBuilder, Url,
     header::{HeaderMap, USER_AGENT},
 };
+
+#[cfg(not(target_family = "wasm"))]
+use reqwest::Proxy;
 
 use crate::{CallbackTrait, Session};
 
@@ -69,6 +72,7 @@ impl Session {
         connections: Option<u64>,
         url_rewrite: Option<String>,
         callback: Option<Box<dyn CallbackTrait>>,
+        local_api_host: Option<&str>,
     ) -> Self {
         let cookie = Cookie::new(ipb_member_id, ipb_pass_hash, sk, igneous, hath_perks);
         let mut hm = HeaderMap::new();
@@ -81,15 +85,22 @@ impl Session {
                     .unwrap()
             })
             .collect::<Vec<_>>();
+        let ip = if let Some(local_api_host) = local_api_host {
+            Url::parse(local_api_host).unwrap()
+        } else {
+            Url::parse("http://127.0.0.1:8081").unwrap()
+        };
         Session {
             clients,
             url_rewrite,
+            local_api_host: ip,
             rr: Default::default(),
             cookie: Arc::new(Mutex::new(cookie)),
             callback: Arc::new(Mutex::new(callback)),
         }
     }
 
+    #[cfg(not(target_family = "wasm"))]
     pub fn set_proxies(&mut self, proxies: Vec<Proxy>) {
         let mut hm = HeaderMap::new();
         hm.append(USER_AGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15".try_into().unwrap());
@@ -128,6 +139,7 @@ impl Session {
             None,
             url_rewrite,
             callback,
+            None,
         )
     }
 }

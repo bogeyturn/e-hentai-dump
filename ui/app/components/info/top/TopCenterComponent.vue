@@ -2,6 +2,8 @@
 import { lookup } from "@/utils/tags/collected";
 
 const props = defineProps<{ tags: string[] }>();
+const currentSelected = ref<string | null>(null);
+
 function getItemStyle(item: string) {
   if (!lookup[item]) return {};
   return {
@@ -43,16 +45,47 @@ const groupedMap = computed(() => {
                 :key="value"
                 class="gt"
                 :style="getItemStyle(value)"
+                @click="
+                  () => {
+                    const k = `${key}:${value}`;
+                    if (currentSelected == k) {
+                      currentSelected = null;
+                    } else {
+                      currentSelected = k;
+                    }
+                  }
+                "
               >
-                <a>{{ value }}</a>
+                <a
+                  :style="
+                    currentSelected == `${key}:${value}` ? 'color: blue' : ''
+                  "
+                  >{{ value }}</a
+                >
               </div>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div id="tagmenu_act" style="display: none" />
-    <div id="tagmenu_new">
+    <div v-if="currentSelected" id="tagmenu_act">
+      <img src="/g/mr.gif" class="mr" alt="&gt;" />
+      <a>Vote Up</a>
+      <img src="/g/mr.gif" class="mr" alt="&gt;" />
+      <a>Vote Down</a>
+      <img src="/g/mr.gif" class="mr" alt="&gt;" />
+      <NuxtLink :to="`/tag/${currentSelected}`">Show Tagged Galleries</NuxtLink>
+      <img src="/g/mr.gif" class="mr" alt="&gt;" />
+      <NuxtLink
+        :to="`https://ehwiki.org/wiki/${currentSelected.split(':', 2)[1]}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Show Tag Definition</NuxtLink
+      >
+      <img src="/g/mr.gif" class="mr" alt="&gt;" />
+      <a @click="currentSelected = null">Add New Tag</a>
+    </div>
+    <div v-else id="tagmenu_new">
       <form action="" method="post" class="nopm" @submit.prevent="() => {}">
         <input
           id="newtagfield"

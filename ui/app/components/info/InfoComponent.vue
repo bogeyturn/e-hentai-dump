@@ -21,7 +21,7 @@ function patchCssUrl(css: string, ratio: [number, number]) {
 
 defineEmits(["close"]);
 
-defineProps<{ galleryData: Info, explunge?:boolean, report?: boolean }>();
+defineProps<{ galleryData: Info; explunge?: boolean; report?: boolean }>();
 </script>
 
 <template>
@@ -42,33 +42,34 @@ defineProps<{ galleryData: Info, explunge?:boolean, report?: boolean }>();
   <template v-else-if="report"><ReportComponent /></template>
   <template v-else>
     <ImagePagination
-        :total-items="galleryData.files"
-        :current-page="page"
-        :show-counter="true"
-        @update:page="page = $event"
+      :total-items="galleryData.files"
+      :current-page="page"
+      :page-size="galleryData.per_page"
+      :show-counter="true"
+      @update:page="page = $event"
     />
     <div id="gdt" class="gt200">
       <NuxtLink
-          v-for="item in galleryData.pages"
-          :key="item.key"
-          :to="`/s/${item.key}/${galleryData.id}-${item.id}`"
+        v-for="item in galleryData.pages"
+        :key="item.key"
+        :to="`/s/${item.key}/${galleryData.id}-${item.id}`"
       >
         <div
-            title="Page {{ item.id }}"
-            :style="patchCssUrl(item.url, item.ratio)"
+          title="Page {{ item.id }}"
+          :style="patchCssUrl(item.url, item.ratio)"
         />
       </NuxtLink>
     </div>
     <ImagePagination
-        :total-items="galleryData.files"
-        :current-page="page"
-        :show-counter="false"
-        :top="false"
-        @update:page="page = $event"
+      :total-items="galleryData.files"
+      :page-size="galleryData.per_page"
+      :current-page="page"
+      :show-counter="false"
+      :top="false"
+      @update:page="page = $event"
     />
     <CommentsComponent :comments="galleryData.comments" />
   </template>
-
 </template>
 
 <style scoped></style>

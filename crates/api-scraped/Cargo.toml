@@ -21,10 +21,11 @@ regex = "1.12.2"
 tsify = { workspace = true, optional = true }
 log = "0.4.29"
 futures = { version = "0.3.31", features = [] }
-nord-proxy = "0.2.1"
 wasm-bindgen = { version = "0.2", optional = true }
+bitflags.workspace = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
+nord-proxy = "0.2.1"
 tokio = { version = "1", features = [
     "sync",
     "time",

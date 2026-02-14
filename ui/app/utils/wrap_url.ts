@@ -5,7 +5,8 @@ export function wrapUrl(url: string) {
   }
 
   if (url && url.startsWith("https://s.exhentai.org/")) {
-    return `/proxy/?url=${encodeURIComponent(url)}`;
+    return url.replace("https://s.exhentai.org/", "https://ehgt.org/");
+   // return `/proxy/?url=${encodeURIComponent(url)}`;
   }
   return url;
 }

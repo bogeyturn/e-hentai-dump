@@ -3,7 +3,6 @@ use std::fmt::Display;
 use anyhow::bail;
 use scraper::Selector;
 use serde::{Deserialize, Serialize};
-use tsify::Tsify;
 
 use crate::Session;
 

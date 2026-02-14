@@ -173,8 +173,16 @@ pub async fn search(
                 posted: v.posted,
                 dumped: v.dumped,
                 expunged: v.expunged,
-                your_rating: state.rating_db.lock().unwrap().get(v.gid),
-                fav_group: state.fav_db.lock().unwrap().get(v.gid),
+                your_rating: state
+                    .rating_db
+                    .lock()
+                    .unwrap()
+                    .get(v.first_gid.unwrap_or(v.current_gid)),
+                fav_group: state
+                    .fav_db
+                    .lock()
+                    .unwrap()
+                    .get(v.first_gid.unwrap_or(v.current_gid)),
             })
             .collect(),
     })

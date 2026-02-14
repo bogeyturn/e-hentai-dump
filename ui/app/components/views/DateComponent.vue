@@ -1,10 +1,5 @@
 <script setup lang="ts">
-defineProps({
-  date: { type: String, required: true },
-  new: { type: Boolean, required: true },
-  disowned: { type: Boolean, required: true },
-  fav: { type: Number, required: false },
-});
+defineProps<{date: {secs: number}, new: boolean, disowned: boolean, fav?: number}>();
 
 function hexToRgb(fav: number) {
   let hex = "#000";
@@ -69,8 +64,8 @@ function style_str(hex: number | null | undefined) {
 
 <template>
   <div :style="style_str(fav)" :class="{ new: 'glnew' }">
-    <b v-if="disowned">{{ date }}</b>
-    <template v-else>{{ date }}</template>
+    <b v-if="disowned">{{ displayDate(date) }}</b>
+    <template v-else>{{ displayDate(date) }}</template>
   </div>
 </template>
 

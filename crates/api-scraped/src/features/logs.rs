@@ -3,7 +3,6 @@ use std::time::Duration;
 use chrono::{NaiveDateTime, TimeZone as _, Utc};
 use scraper::Selector;
 use serde::Serialize;
-use tsify::Tsify;
 
 use crate::{Session, selector};
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import GridItem from "~/components/views/grid/GridItem.vue";
-import type { SearchInfo } from "exx";
+import type {SearchInfo} from "exx";
 
 const scale = useCookie("search-cover-scaling", {
   default: () => 1.0,
@@ -27,7 +27,7 @@ useHead({
 });
 
 defineProps({
-  items: { required: true, type: Array<SearchInfo> },
+  items: {required: true, type: Array<SearchInfo>},
 });
 
 const colClass = computed(() => {
@@ -65,17 +65,20 @@ onBeforeUnmount(() => {
 <template>
   <div class="itg gld" :class="colClass">
     <GridItem
-      v-for="item in items"
-      :id="item.id"
-      :key="item.id"
-      :secret="item.token"
-      :title="item.title"
-      :cover="item.img ? item.img : undefined"
-      :category="item.category"
-      :voted="item.voted"
-      :date="item.published"
-      :pages="item.pages"
-      :stars="item.rating"
+        v-for="item in items"
+        :key="item.id"
+        :idd="item.id"
+        :secret="item.token"
+        :title="item.title"
+        :cover="item.img ? item.img : ''"
+        :category="item.category"
+        :voted="item.voted"
+        :date="item.published"
+        :pages="item.pages"
+        :stars="item.rating"
+        :disowned="item.disowned"
+        :fav="item.favorite"
+        :new-item="item.new"
     />
   </div>
 </template>

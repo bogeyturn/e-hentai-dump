@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use anyhow::bail;
 use reqwest::{
-    Client, Response,
+    Client, Response, Url,
     header::{COOKIE, SET_COOKIE},
 };
 use scraper::Html;
@@ -45,6 +45,16 @@ impl Session {
                 callback.call("set-cookie", serde_json::Value::String(msg));
             }
         }
+    }
+
+    pub async fn local_api<T: Serialize>(&self, path: &str, json: &T) -> anyhow::Result<Response> {
+        Ok(self
+            .get_client()
+            .await
+            .post(self.local_api_host.join(path).unwrap())
+            .json(&json)
+            .send()
+            .await?)
     }
 
     pub async fn api(&self, json: serde_json::Value) -> anyhow::Result<Response> {
