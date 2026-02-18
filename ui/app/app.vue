@@ -55,6 +55,7 @@ const updateLinks = () => {
       },
     ],
     meta: [
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "RATING", content: "RTA-5042-1996-1400-1577-RTA" },
       {
         name: "description",
