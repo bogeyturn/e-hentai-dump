@@ -1,4 +1,7 @@
-use std::{fmt::Debug, str::FromStr};
+use std::{
+    fmt::{Debug, Display},
+    str::FromStr,
+};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use serde_json::Value;
@@ -72,6 +75,31 @@ bitflags! {
     }
 }
 
+const CATEGORY_NAMES: &[(Category, &str)] = &[
+    (Category::DOUJINSHI, "Doujinshi"),
+    (Category::MANGA, "Manga"),
+    (Category::ARTIST_CG, "Artist CG"),
+    (Category::GAME_CG, "Game CG"),
+    (Category::WESTERN, "Western"),
+    (Category::NON_H, "Non-H"),
+    (Category::IMAGE_SET, "Image Set"),
+    (Category::COSPLAY, "Cosplay"),
+    (Category::ASIAN_PORN, "Asian Porn"),
+    (Category::MISC, "Misc"),
+    (Category::PRIVATE, "private"),
+];
+
+impl Display for Category {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut names = Vec::new();
+        for (flag, name) in CATEGORY_NAMES {
+            if self.contains(*flag) {
+                names.push(*name);
+            }
+        }
+        write!(f, "{}", names.join(", "))
+    }
+}
 impl FromStr for Category {
     type Err = String;
 
@@ -186,6 +214,31 @@ pub enum TagPrefix {
     Location = 11,
     Temp = 12,
     None = 13,
+}
+
+impl Display for TagPrefix {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                TagPrefix::Other => "other",
+                TagPrefix::Female => "female",
+                TagPrefix::Male => "male",
+                TagPrefix::Mixed => "mixed",
+                TagPrefix::Language => "language",
+                TagPrefix::Reclass => "reclass",
+                TagPrefix::Parody => "parody",
+                TagPrefix::Character => "character",
+                TagPrefix::Group => "group",
+                TagPrefix::Artist => "artist",
+                TagPrefix::Cosplayer => "cosplayer",
+                TagPrefix::Location => "location",
+                TagPrefix::Temp => "temp",
+                TagPrefix::None => "none",
+            }
+        )
+    }
 }
 
 impl From<u8> for TagPrefix {

@@ -46,6 +46,8 @@ impl Session {
                 id: i as u32 + 1,
                 key: v.k,
                 name: v.n,
+                width: w,
+                height: h,
                 ratio: (w, h),
                 url: v.t,
             })
@@ -72,6 +74,8 @@ impl Session {
 #[cfg_attr(feature = "tsify", tsify(into_wasm_abi))]
 pub struct ImagePage {
     pub id: u32,
+    pub width: u32,
+    pub height: u32,
     pub ratio: (u32, u32),
     pub key: String,
     pub name: String,

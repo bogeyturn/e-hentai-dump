@@ -7,7 +7,7 @@ impl Session {
         &self,
         gid: u64,
         token: &str,
-        apiuid: u64,
+        apiuid: i64,
         apikey: &str,
         rating: u8,
     ) -> anyhow::Result<()> {

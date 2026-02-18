@@ -94,10 +94,16 @@ impl Session {
             clients,
             url_rewrite,
             local_api_host: ip,
+            no_cookie: false,
             rr: Default::default(),
             cookie: Arc::new(Mutex::new(cookie)),
             callback: Arc::new(Mutex::new(callback)),
         }
+    }
+
+    pub fn no_cookies(mut self) -> Self {
+        self.no_cookie = true;
+        self
     }
 
     #[cfg(not(target_family = "wasm"))]

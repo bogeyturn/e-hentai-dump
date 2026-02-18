@@ -331,7 +331,7 @@ def _save_image(img: Image.Image, path: Path):
     suf = path.suffix.lower()
     path.parent.mkdir(parents=True, exist_ok=True)
     if suf == ".webp":
-        img.save(path, format="WEBP", quality=80, method=0)
+        img.save(path, format="WEBP", quality=80, method=3)
     elif suf == ".png":
         img.save(path, format="PNG")
     else:
@@ -538,8 +538,8 @@ if __name__ == "__main__":
         p.add_argument(
             "--workers",
             type=int,
-            default=16,
-            help="Parallel download workers (default: 16).",
+            default=20,
+            help="Parallel download workers (default: 20).",
         )
         return p.parse_args()
 
@@ -557,7 +557,7 @@ if __name__ == "__main__":
     imgs = [x for x in imgs[args.offset : args.offset + args.size]]
 
     def loader(it: str):
-        pil_img = load_img(gg, it, False)
+        pil_img = load_img(gg, it, True)
 
         return pil_img
 
@@ -568,8 +568,8 @@ if __name__ == "__main__":
         load_img=loader,
         padding=4,
         max_workers=args.workers,
-        max_w=16384,
-        max_h=16384,
+        max_w=16383,
+        max_h=16383,
     )
     t2 = time.perf_counter()
 

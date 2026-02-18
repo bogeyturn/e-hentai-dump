@@ -17,9 +17,10 @@ defineEmits(["close"]);
     <ImageSideBar :width="data.thumb.ratio[0]" :height="data.thumb.ratio[1]" :url="data.thumb.url" />
     <TitleBar :title="data.title" :alt-title="data.alt_title" />
     <div id="gmid">
+
       <TopLeftComponent
         :idd="BigInt(data.id)"
-        :apiuid="BigInt(data.apiuid)"
+        :apiuid="data.apiuid ? BigInt(data.apiuid) : null"
         :uploader="data.uploader"
         :visible="data.visible"
         :rating="data.rating"

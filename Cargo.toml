@@ -29,3 +29,5 @@ axum = "0.8.8"
 tsify = { version = "0.5.6" }
 log = "0.4.29"
 tower-http = "0.6.8"
+wasm-bindgen = "0.2.108"
+dotenv = "0.15.0"

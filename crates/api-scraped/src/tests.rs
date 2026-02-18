@@ -52,7 +52,13 @@ async fn full_star() {
     let session = get_session();
     let info = session.info(3510047, "728ab99a36", 1).await.unwrap();
     session
-        .rate(info.id, &info.token, info.apiuid, &info.apikey, 1)
+        .rate(
+            info.id,
+            &info.token,
+            info.apiuid.unwrap(),
+            &info.apikey.unwrap(),
+            1,
+        )
         .await
         .unwrap();
 }
@@ -60,7 +66,14 @@ async fn full_star() {
 #[tokio::test]
 async fn info() {
     let session = get_session();
-    let info = session.info(3510047, "728ab99a36", 1).await.unwrap();
+    let info = session.info(3782532, "3bab8ae1b0", 1).await.unwrap();
+    println!("{:#?}", info);
+}
+
+#[tokio::test]
+async fn info_no_login() {
+    let session = get_session().no_cookies();
+    let info = session.info(2929059, "7e8c768beb", 1).await.unwrap();
     println!("{:#?}", info);
 }
 
@@ -143,8 +156,8 @@ async fn vote_comment() {
             "f8175ecfb8",
             (&info.comments[1]).id,
             true,
-            info.apiuid,
-            &info.apikey,
+            info.apiuid.unwrap(),
+            &info.apikey.unwrap(),
         )
         .await
         .unwrap();
@@ -171,8 +184,8 @@ async fn tag_vote_error() {
             "57c783505b",
             "language:spanish",
             true,
-            info.apiuid,
-            &info.apikey,
+            info.apiuid.unwrap(),
+            &info.apikey.unwrap(),
         )
         .await
         .unwrap();

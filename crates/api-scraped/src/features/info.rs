@@ -30,8 +30,8 @@ pub struct Info {
     pub uploader: String,
     pub uploader_id: Option<u64>,
     pub parent: Option<Parent>,
-    pub apiuid: u64,
-    pub apikey: String,
+    pub apiuid: Option<i64>,
+    pub apikey: Option<String>,
     pub favorited: u64,
     pub favorite: Option<u8>,
     pub my_stars: Option<u8>,
@@ -42,8 +42,8 @@ pub struct Info {
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(into_wasm_abi))]
 pub struct Parent {
-    id: u64,
-    key: String,
+    pub id: u64,
+    pub key: String,
 }
 
 fn parse_url(url: &str) -> (u64, String) {
@@ -126,6 +126,8 @@ fn thumb_from_str(s: &str) -> ImagePage {
         ratio: (w.parse().unwrap(), h.parse().unwrap()),
         key: "".to_owned(),
         name: "".to_owned(),
+        width: w.parse().unwrap(),
+        height: h.parse().unwrap(),
         url: url.to_owned(),
     }
 }
@@ -146,7 +148,7 @@ impl Session {
             .split_once("\"")
             .unwrap()
             .0;
-        let apiuid: u64 = text
+        let apiuid: i64 = text
             .split_once("var apiuid = ")
             .unwrap()
             .1
@@ -347,12 +349,12 @@ impl Session {
         Ok(Info {
             parent,
             id,
-            apiuid,
+            apiuid: Some(apiuid),
             comments,
             favorite: fav,
             thumb: thumb_from_str(html.select(&thumb).next().unwrap().attr("style").unwrap()),
             favorited,
-            apikey: apikey.to_owned(),
+            apikey: Some(apikey.to_owned()),
             token: token.to_owned(),
             per_page: f64::ceil(length as f64 / page_count as f64) as u32,
             pages: html
@@ -376,6 +378,8 @@ impl Session {
                         .to_owned();
                     ImagePage {
                         id,
+                        width: w.replace("px", "").parse().unwrap(),
+                        height: h.replace("px", "").parse().unwrap(),
                         ratio: (
                             w.replace("px", "").parse().unwrap(),
                             h.replace("px", "").parse().unwrap(),

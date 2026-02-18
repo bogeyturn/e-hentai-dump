@@ -1,5 +1,5 @@
 use api_scraped::{
-    CallbackTrait, Session,
+    Session,
     features::{
         bounty::{BountyInfo, BountyPage, BountyStatus, BountyType},
         comment_vote::CommentVote,
@@ -22,9 +22,7 @@ use api_scraped::{
     },
 };
 use log::Level;
-use serde_json::Value;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
-use wasm_bindgen_futures::js_sys::Function;
 
 #[wasm_bindgen(start)]
 pub fn _start() {
@@ -37,23 +35,6 @@ pub struct WasmSession {
     inner: Session,
 }
 
-struct Callback {
-    callback: Function,
-}
-
-impl CallbackTrait for Callback {
-    fn call(&self, kind: &str, message: Value) {
-        let this = JsValue::NULL;
-        let msg = serde_wasm_bindgen::to_value(&message)
-            .map_err(|e| JsValue::from_str(&e.to_string()))
-            .unwrap();
-
-        self.callback
-            .call2(&this, &JsValue::from_str(kind), &msg)
-            .unwrap();
-    }
-}
-
 #[wasm_bindgen]
 impl WasmSession {
     /// Create a new session. `cookie_str` is your whole cookie header.
@@ -62,20 +43,10 @@ impl WasmSession {
         cookie_str: String,
         proxy: Option<String>,
         local_api: Option<String>,
-        callback: Option<Function>,
     ) -> WasmSession {
-        let callback =
-            callback.map(|callback| Box::new(Callback { callback }) as Box<dyn CallbackTrait>);
         WasmSession {
-            inner: Session::new(cookie_str, proxy, callback, local_api),
+            inner: Session::new(cookie_str, proxy, None, local_api),
         }
-    }
-
-    #[wasm_bindgen(js_name = callback)]
-    pub async fn callback_js(&self, callback: Option<Function>) {
-        let callback =
-            callback.map(|callback| Box::new(Callback { callback }) as Box<dyn CallbackTrait>);
-        *self.inner.callback.lock().await = callback;
     }
 
     #[wasm_bindgen(js_name = cookie)]
@@ -131,9 +102,22 @@ impl WasmSession {
 
     /// info(id: number, token: string) -> Promise<object>
     #[wasm_bindgen(js_name = info)]
-    pub async fn info_js(&self, id: u64, token: String, page: u32) -> Result<Info, JsValue> {
-        let out = self.inner.info(id, &token, page).await.map_err(js_err)?;
-        Ok(out)
+    pub async fn info_js(
+        &self,
+        id: u64,
+        token: String,
+        page: u32,
+        local: bool,
+    ) -> Result<Info, JsValue> {
+        let out = if local {
+            match self.inner.info_local(id, &token, page).await {
+                Ok(info) => Ok(info),
+                Err(_) => self.inner.info(id, &token, page).await,
+            }
+        } else {
+            self.inner.info(id, &token, page).await
+        };
+        Ok(out.map_err(js_err)?)
     }
 
     /// nextImg(id: number, token: string, idx: number, aa?: string) -> Promise<object>
@@ -158,7 +142,7 @@ impl WasmSession {
         &self,
         gid: u64,
         token: String,
-        apiuid: u64,
+        apiuid: i64,
         apikey: String,
         rating: u8,
         local: bool,
@@ -228,7 +212,7 @@ impl WasmSession {
         token: String,
         comment_id: u64,
         upvote: bool,
-        apiuid: u64,
+        apiuid: i64,
         apikey: String,
     ) -> Result<CommentVote, JsValue> {
         let data = self
@@ -246,7 +230,7 @@ impl WasmSession {
         token: String,
         tag: &str,
         upvote: bool,
-        apiuid: u64,
+        apiuid: i64,
         apikey: String,
     ) -> Result<Option<String>, JsValue> {
         let data = self

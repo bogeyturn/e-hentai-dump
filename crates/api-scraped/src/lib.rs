@@ -38,7 +38,7 @@ pub mod init;
 mod tests;
 pub mod unit;
 
-pub trait CallbackTrait {
+pub trait CallbackTrait: Send + Sync {
     fn call(&self, kind: &str, message: Value);
 }
 
@@ -57,4 +57,5 @@ pub struct Session {
     pub cookie: Arc<Mutex<Cookie>>,
     pub callback: Arc<Mutex<Option<Box<dyn CallbackTrait>>>>,
     local_api_host: Url,
+    no_cookie: bool,
 }

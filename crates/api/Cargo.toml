@@ -12,4 +12,9 @@ axum.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 serde = { workspace = true, features = ["derive"] }
 chrono.workspace = true
-tower-http = { workspace = true, features = ["cors"] }
+tower-http = { workspace = true, features = ["cors", "fs"] }
+api-scraped.workspace = true
+serde_json.workspace = true
+reqwest = { workspace = true, features = ["socks"] }
+nord-proxy = "0.2.3"
+dotenv.workspace = true

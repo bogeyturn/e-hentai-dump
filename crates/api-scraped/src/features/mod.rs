@@ -8,6 +8,7 @@ pub mod hentai_at_home;
 pub mod home;
 pub mod info;
 mod local_fav;
+mod local_info;
 mod local_rate;
 mod local_search;
 pub mod logs;

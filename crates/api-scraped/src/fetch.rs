@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use anyhow::bail;
 use reqwest::{
-    Client, Response, Url,
+    Client, Response,
     header::{COOKIE, SET_COOKIE},
 };
 use scraper::Html;
@@ -62,21 +62,49 @@ impl Session {
             .get_client()
             .await
             .post(self.url("https://s.exhentai.org/api.php").await)
-            .header(COOKIE, self.cookie.lock().await.to_string())
+            .header(
+                COOKIE,
+                match self.no_cookie {
+                    true => "".to_string(),
+                    false => self.cookie.lock().await.to_string(),
+                },
+            )
             .json(&json)
             .send()
             .await?)
     }
 
     pub async fn get_text(&self, url: impl ToString) -> anyhow::Result<String> {
+        let url = self.url(url).await;
+        println!("{url}");
         let req = self
             .get_client()
             .await
-            .get(self.url(url).await)
-            .header(COOKIE, self.cookie.lock().await.to_string())
+            .get(url)
+            .header(
+                COOKIE,
+                match self.no_cookie {
+                    true => "".to_string(),
+                    false => self.cookie.lock().await.to_string(),
+                },
+            )
             .send()
-            .await?
-            .error_for_status()?;
+            .await?;
+        if req.status().as_u16() == 404 {
+            let text = req.text().await?.replace("\n", "");
+            println!("{}", text);
+            if text.contains(
+                r#"<div class="d"><p>This gallery is unavailable due to a copyright claim by"#,
+            ) && text.contains(
+                r#"<br />Sorry about that.</p><p>You will be redirected to the front page momentarily.</p><p id="continue"><a href="https://exhentai.org/">(Click here to continue)</a></p></div>"#,
+            ) {
+                bail!("copyright")
+            }
+            bail!("404")
+        }
+
+        let req = req.error_for_status()?;
+
         let headers = req
             .headers()
             .iter()
@@ -89,6 +117,7 @@ impl Session {
         ) {
             bail!("IP address has been temporarily banned")
         }
+
         for header in headers {
             self.update_cookie(header).await;
         }
@@ -104,7 +133,13 @@ impl Session {
             .get_client()
             .await
             .post(self.url(url).await)
-            .header(COOKIE, self.cookie.lock().await.to_string())
+            .header(
+                COOKIE,
+                match self.no_cookie {
+                    true => "".to_string(),
+                    false => self.cookie.lock().await.to_string(),
+                },
+            )
             .form(form)
             .send()
             .await?
@@ -128,17 +163,18 @@ impl Session {
     }
 
     async fn url(&self, url: impl ToString) -> String {
+        let mut url = url.to_string();
+        if self.no_cookie {
+            url = url.replace("https://exhentai.org", "https://e-hentai.org")
+        }
         match &self.url_rewrite {
             Some(str) => str
-                .replace(
-                    "{url}",
-                    urlencoding::encode(url.to_string().as_str()).as_ref(),
-                )
+                .replace("{url}", urlencoding::encode(url.as_str()).as_ref())
                 .replace(
                     "{cookie}",
                     urlencoding::encode(&self.cookie.lock().await.to_string()).as_ref(),
                 ),
-            None => url.to_string(),
+            None => url,
         }
     }
 }

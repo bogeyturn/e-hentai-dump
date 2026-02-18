@@ -10,7 +10,7 @@ impl Session {
         token: &str,
         comment_id: u64,
         upvote: bool,
-        apiuid: u64,
+        apiuid: i64,
         apikey: &str,
     ) -> anyhow::Result<CommentVote> {
         let text: CommentVote = self.api(json!({"method":"votecomment","apiuid":apiuid,"apikey":apikey,"gid":gid,"token":token,"comment_id":comment_id,"comment_vote":match upvote {

@@ -14,11 +14,13 @@ import {
   useTypedQuery,
   withDefaults as parseWithDefaults,
 } from "~/composables/useTypedQuery";
-import { computed, useHead } from "#imports";
+import { computed, useHead, useRoute, useRouter } from "#imports";
 import type { AdvancedConfig, Info, SearchInfo } from "exx";
 import InfoComponent from "~/components/info/InfoComponent.vue";
 
 const ses = getSession();
+const route = useRoute();
+const router = useRouter();
 
 useHead({
   title: "Search - ExHentai",
@@ -214,7 +216,7 @@ async function fetchSearchPage(anchorId: number, direction: boolean): Promise<Se
       p.seek ?? null,
       p.jump ?? null,
       direction,
-      null,
+      p.advanced,
       p.categories,
       true,
     );
@@ -318,6 +320,22 @@ const resultsFiltered = computed(() => {
   return filterItems(searchWindow.value.current.items);
 });
 
+function getGalleryErrorText() {
+  if (!galleryData.value || !("error" in galleryData.value)) return "";
+  const err = galleryData.value.error;
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object" && "message" in err) {
+    const msg = (err as { message?: unknown }).message;
+    if (typeof msg === "string") return msg;
+  }
+  return String(err ?? "");
+}
+
+const isCopyrightStriked = computed(() => {
+  const text = getGalleryErrorText().toLowerCase();
+  return text.includes("copyright");
+});
+
 function makeCacheKey(id: number, page: number): GalleryKey {
   return `${id}:${page}`;
 }
@@ -355,7 +373,7 @@ async function loadGallery(id: number, page: number, cache: boolean) {
       return;
     }
 
-    const d = await ses.info(BigInt(id), item.token, page);
+    const d = await ses.info(BigInt(id), item.token, page, true);
 
     const cookie_val = await ses.cookie();
     if (cookie_val != cookie.value) cookie.value = cookie_val;
@@ -451,6 +469,7 @@ async function moveWithinInfo(direction: FetchDirection) {
 
   const shifted = await shiftWindow(direction);
   if (!shifted) return;
+  syncSearchUrlAfterShift(direction);
 
   const visible = resultsFiltered.value;
   if (!visible.length) return;
@@ -460,6 +479,48 @@ async function moveWithinInfo(direction: FetchDirection) {
   if (target) {
     await openGallery(target, 1);
   }
+}
+
+function syncSearchUrlAfterShift(direction: FetchDirection) {
+  const current = searchWindow.value.current;
+  if (!current) return;
+
+  if (current.first) {
+    void router.replace({
+      path: route.path,
+      query: {
+        ...route.query,
+        prev: undefined,
+        next: undefined,
+      },
+    });
+    return;
+  }
+
+  if (direction === "next") {
+    const anchor = searchWindow.value.prev?.items[searchWindow.value.prev.items.length - 1]?.id;
+    if (!anchor) return;
+    void router.replace({
+      path: route.path,
+      query: {
+        ...route.query,
+        prev: undefined,
+        next: anchor,
+      },
+    });
+    return;
+  }
+
+  const anchor = searchWindow.value.next?.items[0]?.id;
+  if (!anchor) return;
+  void router.replace({
+    path: route.path,
+    query: {
+      ...route.query,
+      next: undefined,
+      prev: anchor,
+    },
+  });
 }
 
 function setNextId() {
@@ -551,7 +612,13 @@ const paginationNext = computed(() => {
         :gallery-data="galleryData"
         @close="() => setNextId()"
       />
-      <div v-else>{{ galleryData?.error }}</div>
+      <div v-else>
+        <template v-if="isCopyrightStriked">
+          <div>Copyright striked</div>
+          <button type="button" @click="() => setNextId()">Next</button>
+        </template>
+        <template v-else>{{ galleryData?.error }} <button type="button" @click="() => setNextId()">Next</button></template>
+      </div>
     </template>
     <template v-else>
       <div v-if="displayItems && displayItems.items.length === 0">No items found</div>

@@ -14,7 +14,7 @@ impl Session {
         token: &str,
         tags: &str,
         upvote: bool,
-        apiuid: u64,
+        apiuid: i64,
         apikey: &str,
     ) -> anyhow::Result<Option<String>> {
         let text: Error = self.api(json!({"method":"taggallery","apiuid":apiuid,"apikey":apikey,"gid":gid,"token":token,"tags":tags,"vote":match upvote { true => 1, false => -1 }})).await?

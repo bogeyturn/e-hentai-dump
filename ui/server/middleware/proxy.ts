@@ -1,10 +1,26 @@
 import { defineEventHandler, getQuery, proxyRequest } from "h3";
 import { URL } from "node:url";
 
+const LOCAL_API_ORIGIN = process.env.LOCAL_API_ORIGIN ?? "http://127.0.0.1:8081";
+type ProxyResLike = {
+  headers: Record<string, string | string[] | undefined>;
+};
+
 export default defineEventHandler(async (event) => {
   const req = event.node.req;
   const url_ = req.url || "";
   if (!url_.startsWith("/proxy/")) return;
+
+  if (url_.startsWith("/proxy/local-api/")) {
+    const parsed = new URL(url_, "http://localhost");
+    const path = parsed.pathname.replace("/proxy/local-api", "");
+    const targetUrl = `${LOCAL_API_ORIGIN}${path}${parsed.search}`;
+
+    return proxyRequest(event, targetUrl, {
+      target: LOCAL_API_ORIGIN,
+      changeOrigin: true,
+    });
+  }
 
   const { url } = getQuery(event);
   const cookie = getCookie(event, "EX_COOKIE");
@@ -31,7 +47,7 @@ export default defineEventHandler(async (event) => {
         referer: target.origin,
         ...(decodedCookie ? { cookie: String(decodedCookie) } : {}),
       },
-      onProxyRes(proxyRes: any) {
+      onProxyRes(proxyRes: ProxyResLike) {
         delete proxyRes.headers["access-control-allow-origin"];
         delete proxyRes.headers["access-control-allow-credentials"];
       },
@@ -47,7 +63,7 @@ export default defineEventHandler(async (event) => {
       referer: target.origin,
       ...(decodedCookie ? { cookie: String(decodedCookie) } : {}),
     },
-    async onProxyRes(proxyRes: any) {
+    async onProxyRes(proxyRes: ProxyResLike) {
       delete proxyRes.headers["access-control-allow-origin"];
       delete proxyRes.headers["access-control-allow-credentials"];
     },

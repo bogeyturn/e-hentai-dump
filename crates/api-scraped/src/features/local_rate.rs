@@ -12,7 +12,7 @@ impl Session {
         &self,
         gid: u64,
         _: &str,
-        _: u64,
+        _: i64,
         _: &str,
         rating: u8,
     ) -> anyhow::Result<()> {

@@ -4,7 +4,7 @@ import TopRightComponent from "~/components/info/top/TopRightComponent.vue";
 
 const props = defineProps<{
   idd: bigint;
-  apiuid: bigint;
+  apiuid: bigint | null;
   token: string;
   category: string;
   uploaderId: number | null;
@@ -17,7 +17,7 @@ const props = defineProps<{
   files: number;
   myStars: number | null;
   rating: number | null;
-  apikey: string;
+  apikey: string | null;
   favorited: number;
   favorite: number | null;
 }>();
@@ -46,19 +46,22 @@ async function setStars(count: number, double: boolean = false) {
   await ses.rateGallery(
       props.idd,
       props.token,
-      props.apiuid,
-      props.apikey,
+      BigInt(1),
+      "",
       count,
       true
   );
-  await ses.rateGallery(
-      props.idd,
-      props.token,
-      props.apiuid,
-      props.apikey,
-      count,
-      false
-  );
+  if (props.apiuid && props.apikey) {
+    await ses.rateGallery(
+        props.idd,
+        props.token,
+        props.apiuid,
+        props.apikey,
+        count,
+        false
+    );
+  }
+
   const cookie_val = await ses.cookie();
   if (cookie_val != cookie.value) cookie.value = cookie_val;
 }
