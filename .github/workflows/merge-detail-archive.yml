@@ -21,6 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: archive
+          path: repo
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: |
@@ -28,24 +29,36 @@ jobs:
             append.py
             archive
             build_item_index.py
-            detail
             json_array.py
             merge_detail_archive.py
             replace.py
 
-      - name: Fetch master and detail branches
-        run: |
-          git fetch --depth=1 --filter=blob:none origin master:refs/remotes/origin/master
-          git fetch --depth=1 --filter=blob:none origin detail:refs/remotes/origin/detail
+      - name: Checkout detail branch
+        uses: actions/checkout@v4
+        with:
+          ref: detail
+          path: detail-checkout
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: detail
+
+      - name: Fetch master branch
+        working-directory: repo
+        run: git fetch --depth=1 --filter=blob:none origin master:refs/remotes/origin/master
 
       - name: Restore detail files
-        run: git restore --source=origin/detail --worktree -- detail
+        working-directory: repo
+        run: |
+          mkdir -p detail
+          rsync -a --delete "$GITHUB_WORKSPACE/detail-checkout/detail/" detail/
 
       - name: Merge detail into archive
+        working-directory: repo
         run: python3 merge_detail_archive.py
 
       - name: Check archive changes
         id: archive_changes
+        working-directory: repo
         run: |
           if git status --porcelain -- archive | grep -q .; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -55,6 +68,7 @@ jobs:
 
       - name: Commit and push archive changes
         if: steps.archive_changes.outputs.changed == 'true'
+        working-directory: repo
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -63,4 +77,5 @@ jobs:
           git push origin HEAD:archive
 
       - name: Reset detail branch to master
+        working-directory: repo
         run: git push --force-with-lease=refs/heads/detail origin origin/master:refs/heads/detail
