@@ -4,7 +4,7 @@ import struct
 import tempfile
 from pathlib import Path
 
-import ijson
+from json_array import iter_items
 
 
 def replace_gids(input_path: Path, replacements: dict, output_path=None):
@@ -22,7 +22,7 @@ def replace_gids(input_path: Path, replacements: dict, output_path=None):
         open(input_path, "r", encoding="utf-8") as f_in,
         open(output_path, "w", encoding="utf-8") as f_out,
     ):
-        items = ijson.items(f_in, "item")
+        items = iter_items(f_in, "item")
         f_out.write("[\n")
         first = True
 

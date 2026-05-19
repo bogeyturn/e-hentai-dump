@@ -1,7 +1,7 @@
 import struct
 from pathlib import Path
 
-import ijson
+from json_array import iter_items
 
 
 def build_item_index(archive_files, index_path):
@@ -21,7 +21,7 @@ def build_item_index(archive_files, index_path):
             print(f"Indexing {archive_path}...")
 
             with open(archive_path, "rb") as f:
-                for obj in ijson.items(f, "item"):
+                for obj in iter_items(f, "item"):
                     gid = obj.get("gid")
                     if isinstance(gid, int):
                         out.write(struct.pack("<QHQq", gid, file_id, 0, 0))

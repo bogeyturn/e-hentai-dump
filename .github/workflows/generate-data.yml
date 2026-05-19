@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
 
 concurrency:
@@ -29,6 +30,7 @@ jobs:
             Cargo.lock
             Cargo.toml
             data
+            detail_requests.json
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -39,7 +41,7 @@ jobs:
       - name: Check for data changes
         id: changes
         run: |
-          if git status --porcelain -- data | grep -q .; then
+          if git status --porcelain -- data detail_requests.json | grep -q .; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -50,6 +52,18 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data
+          git add data detail_requests.json
           git commit -m "Update data"
           git push origin HEAD:data
+
+      - name: Dispatch detail generation
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          requests="$(cat detail_requests.json)"
+          if [ "$requests" = "[]" ]; then
+            echo "No detail requests to dispatch."
+            exit 0
+          fi
+          gh workflow run generate-detail.yml --ref detail -f requests_json="$requests"
