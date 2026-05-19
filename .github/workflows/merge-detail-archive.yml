@@ -1,0 +1,66 @@
+name: Merge Detail Into Archive
+
+on:
+  schedule:
+    - cron: "13 3 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: merge-detail-archive
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout archive branch
+        uses: actions/checkout@v4
+        with:
+          ref: archive
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            append.py
+            archive
+            build_item_index.py
+            detail
+            json_array.py
+            merge_detail_archive.py
+            replace.py
+
+      - name: Fetch master and detail branches
+        run: |
+          git fetch --depth=1 --filter=blob:none origin master:refs/remotes/origin/master
+          git fetch --depth=1 --filter=blob:none origin detail:refs/remotes/origin/detail
+
+      - name: Restore detail files
+        run: git restore --source=origin/detail --worktree -- detail
+
+      - name: Merge detail into archive
+        run: python3 merge_detail_archive.py
+
+      - name: Check archive changes
+        id: archive_changes
+        run: |
+          if git status --porcelain -- archive | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push archive changes
+        if: steps.archive_changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add archive
+          git commit -m "Merge detail into archive"
+          git push origin HEAD:archive
+
+      - name: Reset detail branch to master
+        run: git push --force-with-lease=refs/heads/detail origin origin/master:refs/heads/detail
