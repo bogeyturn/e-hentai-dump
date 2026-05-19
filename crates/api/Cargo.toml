@@ -18,3 +18,6 @@ serde_json.workspace = true
 reqwest = { workspace = true, features = ["socks"] }
 nord-proxy = "0.2.3"
 dotenv.workspace = true
+anyhow.workspace = true
+regex.workspace = true
+clap = { workspace = true, features = ["derive"] }

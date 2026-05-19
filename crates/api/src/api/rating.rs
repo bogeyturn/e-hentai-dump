@@ -19,5 +19,7 @@ pub async fn rating(State(state): State<SharedState>, Json(req): Json<RatingRequ
             .lock()
             .unwrap()
             .add(item.first_gid.unwrap_or(item.gid), req.rating);
+    } else {
+        state.rating_db.lock().unwrap().add(req.gid, req.rating);
     }
 }

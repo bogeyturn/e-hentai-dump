@@ -8,8 +8,16 @@ use std::{
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 pub struct FavDb {
-    data: BTreeMap<u64, (u8, Option<String>)>,
+    data: BTreeMap<u64, FavEntry>,
     file: File,
+    next_added: u64,
+}
+
+#[derive(Clone)]
+pub struct FavEntry {
+    pub category: u8,
+    pub note: Option<String>,
+    pub added: u64,
 }
 
 fn split_once(s: &str) -> (u64, &str) {
@@ -35,6 +43,13 @@ fn parse_info(s: &str) -> (u64, (u8, Option<String>)) {
     (id, (rating, title))
 }
 
+fn format_favorite_line(id: u64, rating: u8, encoded_text: Option<&str>) -> String {
+    let prefix = format!("{id}:{rating}");
+    encoded_text
+        .map(|v| format!("{prefix}:{v}"))
+        .unwrap_or(prefix)
+}
+
 impl FavDb {
     pub fn load(path: &Path) -> Self {
         let _ = OpenOptions::new().write(true).create(true).open(path);
@@ -42,12 +57,29 @@ impl FavDb {
             .unwrap()
             .lines()
             .filter(|l| !l.trim().is_empty())
-            .map(parse_info)
+            .enumerate()
+            .map(|(added, line)| {
+                let (id, (category, note)) = parse_info(line);
+                (
+                    id,
+                    FavEntry {
+                        category,
+                        note,
+                        added: added as u64,
+                    },
+                )
+            })
             .collect::<BTreeMap<_, _>>();
+        let next_added = data
+            .values()
+            .map(|v| v.added)
+            .max()
+            .map(|v| v + 1)
+            .unwrap_or(0);
         let mut info: BTreeMap<u8, usize> = BTreeMap::new();
-        for (_, (id, _)) in &data {
-            *info.entry(*id).or_default() += 1;
-            assert!(*id < 10)
+        for item in data.values() {
+            *info.entry(item.category).or_default() += 1;
+            assert!(item.category < 10)
         }
         println!("Fav info: {:?}", info);
         let file = OpenOptions::new()
@@ -55,42 +87,57 @@ impl FavDb {
             .create(true)
             .open(path)
             .unwrap();
-        Self { data, file }
+        Self {
+            data,
+            file,
+            next_added,
+        }
     }
     pub fn get(&self, id: u64) -> Option<(u8, Option<String>)> {
-        self.data.get(&id).cloned()
+        self.data
+            .get(&id)
+            .map(|v| (v.category, v.note.as_ref().map(ToOwned::to_owned)))
+    }
+
+    pub fn entries(&self) -> Vec<(u64, FavEntry)> {
+        self.data
+            .iter()
+            .map(|(&gid, info)| (gid, info.clone()))
+            .collect()
     }
 
     pub fn add(&mut self, id: u64, rating: u8, title: Option<String>) {
-        self.data.insert(id, (rating, title.clone()));
-        let prefix = format!("{id}:{rating}");
-        let playload = title
-            .map(|v| format!("{prefix}:{}", STANDARD.encode(v)))
-            .unwrap_or(prefix);
+        let encoded_note = title.map(|v| STANDARD.encode(v));
+        let payload = format_favorite_line(id, rating, encoded_note.as_deref());
+        self.data.insert(
+            id,
+            FavEntry {
+                category: rating,
+                note: encoded_note,
+                added: self.next_added,
+            },
+        );
+        self.next_added += 1;
         self.file.seek(SeekFrom::End(0)).unwrap();
-        writeln!(&mut self.file, "{}", playload).unwrap();
+        writeln!(&mut self.file, "{}", payload).unwrap();
         self.file.flush().unwrap();
     }
 
     pub fn remove(&mut self, id: u64) -> Option<(u8, Option<String>)> {
         let removed = self.data.remove(&id)?;
         self.rewrite_file();
-        Some(removed)
+        Some((removed.category, removed.note))
     }
 
     fn rewrite_file(&mut self) {
         self.file.set_len(0).unwrap();
         self.file.seek(SeekFrom::Start(0)).unwrap();
 
-        let items: Vec<_> = self.data.iter().collect();
+        let mut items: Vec<_> = self.data.iter().collect();
+        items.sort_by_key(|(_, item)| item.added);
 
-        for (&id, (rating, text)) in items {
-            let prefix = format!("{id}:{rating}");
-            let payload = text
-                .as_ref()
-                .map(|v| format!("{prefix}:{}", v))
-                .unwrap_or(prefix);
-
+        for (&id, item) in items {
+            let payload = format_favorite_line(id, item.category, item.note.as_deref());
             writeln!(&mut self.file, "{}", payload).unwrap();
         }
 

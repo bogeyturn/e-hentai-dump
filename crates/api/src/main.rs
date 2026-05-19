@@ -1,5 +1,6 @@
 mod api;
 mod dbs;
+mod gg;
 mod hitomi;
 mod search;
 
@@ -11,10 +12,14 @@ use std::{
 
 use axum::{
     Router,
+    http::HeaderValue,
     routing::{get, post},
 };
+use clap::Parser;
 use db_creator::{Db, build};
 use nord_proxy::ProxyTrait as _;
+use reqwest::{Method, header};
+use tokio::net::TcpListener;
 use tower_http::{
     cors::{Any, CorsLayer},
     services::ServeDir,
@@ -27,6 +32,17 @@ pub struct AppState {
     pub fav_db: Mutex<FavDb>,
     pub rating_db: Mutex<RatingDb>,
     pub client: api_scraped::Session,
+}
+#[derive(Parser, Debug)]
+#[command(name = "server", about = "Tiny tokio server")]
+struct Args {
+    /// Host/IP to bind to (e.g. 127.0.0.1, 0.0.0.0)
+    #[arg(short = 'h', long = "host", default_value = "0.0.0.0")]
+    host: String,
+
+    /// Port to bind to
+    #[arg(short = 'p', long = "port", default_value_t = 8081)]
+    port: u16,
 }
 
 #[tokio::main]
@@ -63,6 +79,7 @@ async fn main() {
         .route("/search", post(api::search::search))
         .route("/remove-favorite", post(api::favorite::favorite_delete))
         .route("/set-favorite", post(api::favorite::favorite))
+        .route("/favorites", post(api::favorite::favorites))
         .route("/set-rating", post(api::rating::rating))
         .route("/grouped", post(api::compute_group::compute_group))
         .route("/ids", get(api::ids::ids))
@@ -71,8 +88,11 @@ async fn main() {
         .layer(cors)
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8081").await.unwrap();
-    println!("serving at 0.0.0.0:8081");
+    let args = Args::parse();
+
+    let addr = format!("{}:{}", args.host, args.port);
+    let listener = TcpListener::bind(&addr).await.unwrap();
+    println!("serving at {addr}");
 
     axum::serve(listener, app).await.unwrap();
 }
