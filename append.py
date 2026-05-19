@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator, Union
 
-import ijson
+from json_array import iter_items
 
 MAX_ITEMS = 40_000
 ARCHIVE_RE = re.compile(r"archive_(\d+)\.json")
@@ -14,7 +14,7 @@ ARCHIVE_RE = re.compile(r"archive_(\d+)\.json")
 
 def count_items(path):
     with open(path, "r", encoding="utf-8") as f:
-        return sum(1 for _ in ijson.items(f, "item"))
+        return sum(1 for _ in iter_items(f, "item"))
 
 
 def find_last_archive():
@@ -42,7 +42,7 @@ class GiantJsonArrayLoader:
 
     def __call__(self, source: Union[str, Path]) -> Iterator[Any]:
         with _open_text_auto(source) as f:
-            yield from ijson.items(f, self.prefix)
+            yield from iter_items(f, self.prefix)
 
 
 _NUM_JSON_RE = re.compile(r"^(\d+)\.json$")
