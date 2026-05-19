@@ -1,4 +1,4 @@
-name: Generate and Commit Data
+name: Generate Data
 
 on:
   schedule:
@@ -8,38 +8,48 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: generate-data
+  cancel-in-progress: false
+
 jobs:
   generate:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout data branch
         uses: actions/checkout@v4
+        with:
+          ref: data
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            crates
+            Cargo.lock
+            Cargo.toml
+            data
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Run data generator
-        run: cargo run --release
+      - name: Generate RSS data files
+        run: cargo run -p downloader --release -- data
 
-      - name: Check for changes
+      - name: Check for data changes
         id: changes
         run: |
-          if git status --porcelain | grep -E '^( M|A |\?\?) (data/|detail/)'; then
-            echo "changed=true" >> $GITHUB_OUTPUT
+          if git status --porcelain -- data | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit and push changes
+      - name: Commit and push data changes
         if: steps.changes.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add data detail
-          git commit -m "Update generated data"
-          git push
+          git add data
+          git commit -m "Update data"
+          git push origin HEAD:data

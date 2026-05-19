@@ -1,0 +1,64 @@
+name: Generate Detail
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: generate-detail
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      DETAIL_BATCH_LIMIT: ${{ vars.DETAIL_BATCH_LIMIT || '500' }}
+
+    steps:
+      - name: Checkout detail branch
+        uses: actions/checkout@v4
+        with:
+          ref: detail
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            crates
+            Cargo.lock
+            Cargo.toml
+            data
+            detail
+
+      - name: Fetch data branch metadata
+        run: git fetch --depth=1 --filter=blob:none origin data:refs/remotes/origin/data
+
+      - name: Restore data files from data branch
+        run: git restore --source=origin/data --worktree -- data
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate detail files
+        run: cargo run -p downloader --release -- detail --limit "$DETAIL_BATCH_LIMIT"
+
+      - name: Check for detail changes
+        id: changes
+        run: |
+          if git status --porcelain -- detail | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push detail changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add detail
+          git commit -m "Update detail"
+          git push origin HEAD:detail
