@@ -2,8 +2,9 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use downloader::{
-    DetailRequest, Item, Mode, Tag, load_missing_detail_requests, parse_limit_arg,
-    select_new_data_items, write_data_items, write_detail_item,
+    DetailRequest, Item, Mode, Tag, detail_requests_from_items, filter_missing_detail_requests,
+    load_detail_requests, load_missing_detail_requests, parse_detail_args, select_new_data_items,
+    write_data_items, write_detail_item, write_detail_requests,
 };
 use quick_xml::de::from_str;
 
@@ -16,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
         std::process::exit(2);
     };
     let mode = Mode::parse(mode).map_err(anyhow::Error::msg)?;
-    let limit = parse_limit_arg(&args[1..]).map_err(anyhow::Error::msg)?;
+    let detail_args = parse_detail_args(&args[1..]).map_err(anyhow::Error::msg)?;
 
     let client = Client::new();
 
@@ -24,12 +25,22 @@ async fn main() -> anyhow::Result<()> {
         Mode::Data => {
             let items = select_new_data_items(fetch_data(&client).await?, Path::new("data"));
             let count = items.len();
+            let requests = detail_requests_from_items(&items);
             write_data_items(items, Path::new("data"))?;
+            write_detail_requests(&requests, Path::new("detail_requests.json"))?;
             println!("Wrote {count} data item(s)");
         }
         Mode::Detail => {
-            let requests =
-                load_missing_detail_requests(Path::new("data"), Path::new("detail"), limit)?;
+            let requests = if let Some(path) = detail_args.requests_path.as_deref() {
+                let requests = load_detail_requests(path)?;
+                filter_missing_detail_requests(requests, Path::new("detail"), detail_args.limit)
+            } else {
+                load_missing_detail_requests(
+                    Path::new("data"),
+                    Path::new("detail"),
+                    detail_args.limit,
+                )?
+            };
             let count = requests.len();
             write_detail_items(&client, requests).await?;
             println!("Wrote {count} detail item(s)");

@@ -132,10 +132,16 @@ impl Item {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DetailRequest {
     pub gid: u64,
     pub token: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DetailArgs {
+    pub limit: Option<usize>,
+    pub requests_path: Option<std::path::PathBuf>,
 }
 
 #[derive(Deserialize)]
@@ -163,6 +169,27 @@ pub fn write_data_items(items: Vec<Item>, data_dir: &Path) -> anyhow::Result<()>
     Ok(())
 }
 
+pub fn detail_requests_from_items(items: &[Item]) -> Vec<DetailRequest> {
+    items
+        .iter()
+        .map(|item| DetailRequest {
+            gid: item.gid,
+            token: item.token.clone(),
+        })
+        .collect()
+}
+
+pub fn write_detail_requests(requests: &[DetailRequest], path: &Path) -> anyhow::Result<()> {
+    let mut file = File::create(path)?;
+    file.write_all(serde_json::to_string(requests)?.as_bytes())?;
+    Ok(())
+}
+
+pub fn load_detail_requests(path: &Path) -> anyhow::Result<Vec<DetailRequest>> {
+    let requests = serde_json::from_reader(File::open(path)?)?;
+    Ok(requests)
+}
+
 pub fn load_missing_detail_requests(
     data_dir: &Path,
     detail_dir: &Path,
@@ -181,21 +208,31 @@ pub fn load_missing_detail_requests(
     let mut requests = Vec::new();
     for path in data_files {
         let item: StoredDataItem = serde_json::from_reader(File::open(&path)?)?;
-        if detail_dir.join(format!("{}.json", item.gid)).exists() {
-            continue;
-        }
-
         requests.push(DetailRequest {
             gid: item.gid,
             token: item.token,
         });
+    }
 
-        if limit.is_some_and(|limit| requests.len() >= limit) {
+    Ok(filter_missing_detail_requests(requests, detail_dir, limit))
+}
+
+pub fn filter_missing_detail_requests(
+    requests: Vec<DetailRequest>,
+    detail_dir: &Path,
+    limit: Option<usize>,
+) -> Vec<DetailRequest> {
+    let mut filtered = Vec::new();
+    for request in requests {
+        if detail_dir.join(format!("{}.json", request.gid)).exists() {
+            continue;
+        }
+        filtered.push(request);
+        if limit.is_some_and(|limit| filtered.len() >= limit) {
             break;
         }
     }
-
-    Ok(requests)
+    filtered
 }
 
 pub fn write_detail_item(
@@ -219,7 +256,14 @@ fn numeric_stem(path: &Path) -> Option<u64> {
 }
 
 pub fn parse_limit_arg(args: &[String]) -> Result<Option<usize>, String> {
-    let mut limit = None;
+    parse_detail_args(args).map(|args| args.limit)
+}
+
+pub fn parse_detail_args(args: &[String]) -> Result<DetailArgs, String> {
+    let mut parsed = DetailArgs {
+        limit: None,
+        requests_path: None,
+    };
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -227,17 +271,24 @@ pub fn parse_limit_arg(args: &[String]) -> Result<Option<usize>, String> {
                 let value = args
                     .get(i + 1)
                     .ok_or_else(|| "--limit requires a value".to_string())?;
-                limit = Some(
+                parsed.limit = Some(
                     value
                         .parse()
                         .map_err(|_| format!("invalid --limit value '{value}'"))?,
                 );
                 i += 2;
             }
+            "--requests" => {
+                let value = args
+                    .get(i + 1)
+                    .ok_or_else(|| "--requests requires a value".to_string())?;
+                parsed.requests_path = Some(value.into());
+                i += 2;
+            }
             other => return Err(format!("unknown argument '{other}'")),
         }
     }
-    Ok(limit)
+    Ok(parsed)
 }
 
 #[cfg(test)]
@@ -308,6 +359,42 @@ mod tests {
 
         assert_eq!(
             requests,
+            vec![DetailRequest {
+                gid: 1,
+                token: "one".into()
+            }]
+        );
+    }
+
+    #[test]
+    fn detail_mode_loads_missing_requests_from_small_request_file() {
+        let root = temp_dir("detail-request-file");
+        let detail_dir = root.join("detail");
+        let request_file = root.join("detail_requests.json");
+        fs::create_dir_all(&detail_dir).unwrap();
+        write_json(&detail_dir.join("2.json"), r#"{"gid":2}"#);
+
+        let requests = vec![
+            DetailRequest {
+                gid: 1,
+                token: "one".into(),
+            },
+            DetailRequest {
+                gid: 2,
+                token: "two".into(),
+            },
+            DetailRequest {
+                gid: 3,
+                token: "three".into(),
+            },
+        ];
+        write_detail_requests(&requests, &request_file).unwrap();
+
+        let loaded = load_detail_requests(&request_file).unwrap();
+        let missing = filter_missing_detail_requests(loaded, &detail_dir, Some(1));
+
+        assert_eq!(
+            missing,
             vec![DetailRequest {
                 gid: 1,
                 token: "one".into()
