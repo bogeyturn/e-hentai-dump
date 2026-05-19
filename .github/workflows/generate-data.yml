@@ -15,6 +15,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          path: repo
+
+      - name: Checkout detail data
+        uses: actions/checkout@v4
+        with:
+          ref: detail
+          path: detail-branch
+          fetch-depth: 1
+          sparse-checkout: detail
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -22,11 +32,19 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Restore detail data
+        working-directory: repo
+        run: |
+          mkdir -p detail
+          rsync -a --delete "$GITHUB_WORKSPACE/detail-branch/detail/" detail/
+
       - name: Run data generator
+        working-directory: repo
         run: cargo run --release
 
       - name: Check for changes
         id: changes
+        working-directory: repo
         run: |
           if git status --porcelain | grep -E '^( M|A |\?\?) (data/|detail/)'; then
             echo "changed=true" >> $GITHUB_OUTPUT
@@ -36,6 +54,7 @@ jobs:
 
       - name: Commit and push changes
         if: steps.changes.outputs.changed == 'true'
+        working-directory: repo
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
