@@ -1,59 +1,66 @@
-use std::{
-    fs::{File, create_dir_all},
-    io::Write,
-    path::PathBuf,
-};
+use std::path::Path;
 
 use chrono::{DateTime, Utc};
+use downloader::{
+    DetailRequest, Item, Mode, Tag, load_missing_detail_requests, parse_limit_arg,
+    select_new_data_items, write_data_items, write_detail_item,
+};
 use quick_xml::de::from_str;
 
 use reqwest::Client;
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    let Some(mode) = args.first() else {
+        eprintln!("Usage: downloader <data|detail> [--limit N]");
+        std::process::exit(2);
+    };
+    let mode = Mode::parse(mode).map_err(anyhow::Error::msg)?;
+    let limit = parse_limit_arg(&args[1..]).map_err(anyhow::Error::msg)?;
+
     let client = Client::new();
 
-    let data = fetch_data(&client)
-        .await
-        .unwrap()
-        .into_iter()
-        .map(|v| (PathBuf::from(format!("data/{}.json", v.gid)), v))
-        .filter(|v| !v.0.exists())
-        .collect::<Vec<_>>();
-    create_dir_all("detail").unwrap();
-    create_dir_all("data").unwrap();
-    for data in data.chunks(25) {
-        let payload = data
-            .iter()
-            .map(|v| (v.1.gid, v.1.token.clone()))
-            .collect::<Vec<_>>();
-        for (mut file, gid) in api(&client, payload)
-            .await
-            .unwrap()
-            .into_iter()
-            .zip(data.iter().map(|v| v.1.gid))
-        {
-            if let Value::Object(map) = &mut file {
-                map.insert(
-                    "dumped".to_string(),
-                    Value::from(
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs(),
-                    ),
-                );
-            }
-            let path = PathBuf::from(format!("detail/{}.json", gid));
-            File::create(path)
-                .unwrap()
-                .write_all(serde_json::to_string(&file).unwrap().as_bytes())
-                .unwrap();
+    match mode {
+        Mode::Data => {
+            let items = select_new_data_items(fetch_data(&client).await?, Path::new("data"));
+            let count = items.len();
+            write_data_items(items, Path::new("data"))?;
+            println!("Wrote {count} data item(s)");
+        }
+        Mode::Detail => {
+            let requests =
+                load_missing_detail_requests(Path::new("data"), Path::new("detail"), limit)?;
+            let count = requests.len();
+            write_detail_items(&client, requests).await?;
+            println!("Wrote {count} detail item(s)");
         }
     }
-    for (path, item) in data {
-        let t = serde_json::to_string(&item).unwrap();
-        File::create(path).unwrap().write_all(t.as_bytes()).unwrap();
+
+    Ok(())
+}
+
+async fn write_detail_items(client: &Client, requests: Vec<DetailRequest>) -> anyhow::Result<()> {
+    for chunk in requests.chunks(25) {
+        let payload = chunk
+            .iter()
+            .map(|request| (request.gid, request.token.clone()))
+            .collect::<Vec<_>>();
+        for (file, gid) in api(client, payload)
+            .await?
+            .into_iter()
+            .zip(chunk.iter().map(|request| request.gid))
+        {
+            write_detail_item(Path::new("detail"), gid, file, dumped_timestamp())?;
+        }
     }
+    Ok(())
+}
+
+fn dumped_timestamp() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
 }
 
 async fn api(client: &Client, ids: Vec<(u64, String)>) -> Result<Vec<Value>, reqwest::Error> {
@@ -74,78 +81,6 @@ async fn api(client: &Client, ids: Vec<(u64, String)>) -> Result<Vec<Value>, req
 #[derive(Deserialize)]
 struct Data {
     gmetadata: Vec<Value>,
-}
-
-#[derive(Debug)]
-pub enum Tag {
-    Other(String),
-    Female(String),
-    Male(String),
-    Mixed(String),
-    Language(String),
-    Reclass(String),
-    Parody(String),
-    Character(String),
-    Group(String),
-    Artist(String),
-    Cosplayer(String),
-    Location(String),
-    Temp(String),
-    None(String),
-}
-
-impl Serialize for Tag {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let s = match self {
-            Tag::None(v) => v.clone(),
-            Tag::Artist(v) => format!("a:{v}"),
-            Tag::Character(v) => format!("c:{v}"),
-            Tag::Cosplayer(v) => format!("co:{v}"),
-            Tag::Female(v) => format!("f:{v}"),
-            Tag::Group(v) => format!("g:{v}"),
-            Tag::Language(v) => format!("l:{v}"),
-            Tag::Location(v) => format!("lo:{v}"),
-            Tag::Male(v) => format!("m:{v}"),
-            Tag::Mixed(v) => format!("mi:{v}"),
-            Tag::Other(v) => format!("o:{v}"),
-            Tag::Parody(v) => format!("p:{v}"),
-            Tag::Reclass(v) => format!("r:{v}"),
-            Tag::Temp(v) => format!("t:{v}"),
-        };
-
-        serializer.serialize_str(&s)
-    }
-}
-
-impl From<&str> for Tag {
-    fn from(value: &str) -> Self {
-        if !value.contains(":") {
-            return Tag::None(value.to_string());
-        }
-        let (k, v) = value
-            .split_once(":")
-            .expect(&format!("Invalid tag format: {}", value));
-        let value = v.to_string();
-        match k {
-            "other" => Tag::Other(value),
-            "female" => Tag::Female(value),
-            "male" => Tag::Male(value),
-            "mixed" => Tag::Mixed(value),
-            "language" => Tag::Language(value),
-            "reclass" => Tag::Reclass(value),
-            "parody" => Tag::Parody(value),
-            "character" => Tag::Character(value),
-            "group" => Tag::Group(value),
-            "artist" => Tag::Artist(value),
-            "cosplayer" => Tag::Cosplayer(value),
-            "location" => Tag::Location(value),
-            "temp" => Tag::Temp(value),
-            _ => unimplemented!("{}", k),
-        }
-    }
 }
 
 async fn fetch_data(client: &Client) -> Result<Vec<Item>, anyhow::Error> {
@@ -205,28 +140,8 @@ async fn fetch_data(client: &Client) -> Result<Vec<Item>, anyhow::Error> {
         .collect())
 }
 
-#[derive(Serialize)]
-pub struct Item {
-    #[serde(rename = "a")]
-    author: String,
-    #[serde(rename = "c")]
-    categories: Vec<Tag>,
-    #[serde(rename = "d", skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
-    #[serde(rename = "g")]
-    gid: u64,
-    #[serde(rename = "i")]
-    img: String,
-    #[serde(rename = "n")]
-    name: String,
-    #[serde(rename = "p")]
-    published: u64,
-    #[serde(rename = "t")]
-    token: String,
-}
-
 use scraper::{Html, Selector};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{Value, json};
 
 #[derive(Debug, Deserialize)]
