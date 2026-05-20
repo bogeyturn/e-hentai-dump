@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: merge-detail-archive
+  group: generate-detail
   cancel-in-progress: false
 
 jobs:
@@ -41,6 +41,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: detail
+
+      - name: Capture detail head
+        id: detail_head
+        working-directory: detail-checkout
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Fetch master branch
         working-directory: repo
@@ -78,4 +83,4 @@ jobs:
 
       - name: Reset detail branch to master
         working-directory: repo
-        run: git push --force-with-lease=refs/heads/detail origin origin/master:refs/heads/detail
+        run: git push --force-with-lease=refs/heads/detail:${{ steps.detail_head.outputs.sha }} origin origin/master:refs/heads/detail
