@@ -61,8 +61,13 @@ impl MPVStore {
     }
 
     #[wasm_bindgen(js_name = unloadImg)]
-    pub async fn unload_img(&self, index: usize) {
+    pub fn unload_img(&self, index: usize) {
         self.cache.borrow_mut().remove(&index);
+    }
+
+    #[wasm_bindgen(js_name = imgPreviews)]
+    pub fn img_previews(&self) -> Vec<ImagePage> {
+        self.images.clone()
     }
 
     #[wasm_bindgen(js_name = getImg)]
