@@ -1,3 +1,5 @@
+use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
+
 use api_scraped::{
     Session,
     features::{
@@ -10,7 +12,7 @@ use api_scraped::{
         info::Info,
         logs::{CreditLog, KarmaPage},
         manage_folders::Folder,
-        mpv::ImagePage,
+        mpv::{Image, ImagePage},
         news::News,
         perks::PerkPage,
         reader,
@@ -21,8 +23,87 @@ use api_scraped::{
         upload::{GalleryPage, UploadGalleryInfo},
     },
 };
+use futures::lock::Mutex as AsyncMutex;
 use log::Level;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
+#[wasm_bindgen]
+pub struct MPVStore {
+    gid: u64,
+    token: String,
+    mpv_token: String,
+    images: Vec<ImagePage>,
+    inner: Arc<Session>,
+
+    cache: Rc<RefCell<HashMap<usize, Rc<Image>>>>,
+
+    image_locks: Rc<RefCell<HashMap<usize, Rc<AsyncMutex<()>>>>>,
+}
+
+#[wasm_bindgen]
+impl MPVStore {
+    async fn new(inner: Arc<Session>, gid: u64, token: String) -> Result<Self, JsValue> {
+        let (mut data, mpv_token) = inner.mpv_info(gid, &token).await.map_err(js_err)?;
+        data.sort_by_key(|v| v.id);
+        Ok(MPVStore {
+            gid,
+            token,
+            mpv_token,
+            images: data,
+            cache: Default::default(),
+            image_locks: Default::default(),
+            inner,
+        })
+    }
+
+    #[wasm_bindgen(js_name = reload)]
+    pub async fn reload(self) -> Result<Self, JsValue> {
+        Self::new(self.inner, self.gid, self.token).await
+    }
+
+    #[wasm_bindgen(js_name = unloadImg)]
+    pub async fn unload_img(&self, index: usize) {
+        self.cache.borrow_mut().remove(&index);
+    }
+
+    #[wasm_bindgen(js_name = getImg)]
+    pub async fn img(&self, index: usize) -> Result<Image, JsValue> {
+        if let Some(img) = self.cache.borrow().get(&index).cloned() {
+            return Ok(img.as_ref().clone());
+        }
+
+        let image_lock = {
+            let mut locks = self.image_locks.borrow_mut();
+
+            locks
+                .entry(index)
+                .or_insert_with(|| Rc::new(AsyncMutex::new(())))
+                .clone()
+        };
+
+        let _guard = image_lock.lock().await;
+
+        if let Some(img) = self.cache.borrow().get(&index).cloned() {
+            return Ok(img.as_ref().clone());
+        }
+
+        let img_page = self
+            .images
+            .get(index)
+            .ok_or_else(|| js_err("index out of bounds"))?;
+
+        let img = self
+            .inner
+            .mpv_page(self.gid, img_page.id, &img_page.key, &self.mpv_token)
+            .await
+            .map_err(js_err)?;
+
+        let img = Rc::new(img);
+
+        self.cache.borrow_mut().insert(index, img.clone());
+
+        Ok(img.as_ref().clone())
+    }
+}
 
 #[wasm_bindgen(start)]
 pub fn _start() {
@@ -32,7 +113,7 @@ pub fn _start() {
 
 #[wasm_bindgen]
 pub struct WasmSession {
-    inner: Session,
+    inner: Arc<Session>,
 }
 
 #[wasm_bindgen]
@@ -45,7 +126,7 @@ impl WasmSession {
         local_api: Option<String>,
     ) -> WasmSession {
         WasmSession {
-            inner: Session::new(cookie_str, proxy, None, local_api),
+            inner: Arc::new(Session::new(cookie_str, proxy, None, local_api)),
         }
     }
 
@@ -271,9 +352,8 @@ impl WasmSession {
     }
 
     #[wasm_bindgen(js_name = mpv)]
-    pub async fn mpv_js(&self, gid: u64, token: String) -> Result<Vec<ImagePage>, JsValue> {
-        let data = self.inner.mpv_info(gid, &token).await.map_err(js_err)?;
-        Ok(data)
+    pub async fn mpv_js(&self, gid: u64, token: String) -> Result<MPVStore, JsValue> {
+        MPVStore::new(self.inner.clone(), gid, token).await
     }
 
     #[wasm_bindgen(js_name = auto_reorder_folder)]

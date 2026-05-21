@@ -40,7 +40,7 @@ impl Session {
     }
 
     pub async fn remove_favorite_local(&self, gid: u64, _: &str) -> anyhow::Result<()> {
-        self.form("remove-favorite", &FavoriteDeleteRequest { gid })
+        self.local_api("remove-favorite", &FavoriteDeleteRequest { gid })
             .await?;
         Ok(())
     }

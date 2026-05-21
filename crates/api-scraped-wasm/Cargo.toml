@@ -16,3 +16,4 @@ api-scraped = { workspace = true, features = ["tsify"] }
 console_log = "1.0.0"
 serde_json.workspace = true
 log.workspace = true
+futures.workspace = true
