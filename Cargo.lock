@@ -134,6 +134,7 @@ dependencies = [
  "api-scraped",
  "console_error_panic_hook",
  "console_log",
+ "futures",
  "log",
  "scraper",
  "serde-wasm-bindgen",

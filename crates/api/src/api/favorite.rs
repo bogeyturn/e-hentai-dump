@@ -86,6 +86,8 @@ pub async fn favorite(State(state): State<SharedState>, Json(req): Json<Favorite
             .lock()
             .unwrap()
             .add(item.first_gid.unwrap_or(item.gid), req.fav, req.note);
+    } else {
+        state.fav_db.lock().unwrap().add(req.gid, req.fav, req.note);
     }
 }
 

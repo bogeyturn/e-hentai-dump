@@ -1,12 +1,67 @@
-use scraper::Selector;
+use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use crate::Session;
+#[derive(Serialize, Deserialize)]
+struct Root1 {
+    d: String,
+    i: String,
+    lf: Option<String>,
+    ll: String,
+    lo: String,
+    ls: Option<String>,
+    o: String,
+    s: String,
+    xres: String,
+    yres: String,
+}
 
+#[derive(Debug, Serialize, Clone)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi))]
+pub struct Image {
+    url: String,
+    original: Option<String>,
+    hash: Option<String>,
+    w: u32,
+    h: u32,
+}
 impl Session {
-    pub async fn mpv_info(&self, id: u64, secret: &str) -> anyhow::Result<Vec<ImagePage>> {
+    pub async fn mpv_page(
+        &self,
+        gid: u64,
+        idx: u32,
+        imgkey: &str,
+        mpvkey: &str,
+    ) -> anyhow::Result<Image> {
+        let d:Root1 = self.api(json!({"method":"imagedispatch","gid":gid,"page":idx,"imgkey":imgkey,"mpvkey":mpvkey})).await?.json().await?;
+        let hash =
+            d.ls.and_then(|v| v.split_once("f_shash=").map(|v| v.1.to_owned()));
+        let lf = d.lf.map(|v| format!("https://exhentai.org/{v}"));
+        Ok(Image {
+            url: d.i,
+            w: d.xres.parse().unwrap(),
+            h: d.yres.parse().unwrap(),
+            hash,
+            original: lf,
+        })
+    }
+    pub async fn mpv_info(
+        &self,
+        id: u64,
+        secret: &str,
+    ) -> anyhow::Result<(Vec<ImagePage>, String)> {
         let url = format!("https://exhentai.org/mpv/{id}/{secret}/");
-        let html = self.get_html(url).await?;
+        let html = self.get_text(url).await?;
+        let mpvkey = html
+            .split_once("var mpvkey = \"")
+            .unwrap()
+            .1
+            .split_once("\"")
+            .unwrap()
+            .0;
+        let html = Html::parse_document(&html);
 
         let selector = Selector::parse("script").unwrap();
         let size = Selector::parse("#pane_thumbs div").unwrap();
@@ -39,19 +94,22 @@ impl Session {
             .0;
         let v: Vec<MpvItem> = serde_json::from_str(item)?;
         assert_eq!(v.len(), ratios.len());
-        Ok(v.into_iter()
-            .zip(ratios)
-            .enumerate()
-            .map(|(i, (v, (w, h)))| ImagePage {
-                id: i as u32 + 1,
-                key: v.k,
-                name: v.n,
-                width: w,
-                height: h,
-                ratio: (w, h),
-                url: v.t,
-            })
-            .collect::<Vec<_>>())
+        Ok((
+            v.into_iter()
+                .zip(ratios)
+                .enumerate()
+                .map(|(i, (v, (w, h)))| ImagePage {
+                    id: i as u32 + 1,
+                    key: v.k,
+                    name: v.n,
+                    width: w,
+                    height: h,
+                    ratio: (w, h),
+                    url: v.t,
+                })
+                .collect::<Vec<_>>(),
+            mpvkey.to_owned(),
+        ))
     }
 
     pub async fn mpv_info_bypass(&self, id: u64, secret: &str) -> anyhow::Result<Vec<ImagePage>> {
@@ -69,7 +127,7 @@ impl Session {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(into_wasm_abi))]
 pub struct ImagePage {
